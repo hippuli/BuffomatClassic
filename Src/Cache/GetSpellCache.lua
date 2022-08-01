@@ -1,12 +1,12 @@
 local TOCNAME, _ = ...
-local BOM = BuffomatAddon ---@type BuffomatAddon
+local BOM = BuffomatAddon ---@type BomAddon
 
 ---@class BomSpellCacheModule
-local spellCacheModule = BuffomatModule.DeclareModule("SpellCache") ---@type BomSpellCacheModule
+local spellCacheModule = BuffomatModule.New("SpellCache") ---@type BomSpellCacheModule
 ---@type table<number|string, BomSpellCacheElement> Stores arg to results mapping for GetItemInfo
 spellCacheModule.cache = {}
 
-local spellDefModule = BuffomatModule.Import("SpellDef") ---@type BomSpellDefModule
+local buffDefModule = BuffomatModule.Import("BuffDefinition") ---@type BomBuffDefinitionModule
 
 ---@class BomSpellCacheElement
 ---@field name string
@@ -65,7 +65,7 @@ function spellCacheModule:LoadSpell(spellId, onLoaded)
   cacheSpell.spellId = spellId
 
   local spellInfoReady_func = function()
-    local spellDef = spellDefModule.allSpells[spellId]
+    local spellDef = buffDefModule.allSpells[spellId]
 
     -- Assume the spell info is loaded here and the response is instant
     local name, rank, icon, castTime, minRange, maxRange, _spellId = GetSpellInfo(spellId)

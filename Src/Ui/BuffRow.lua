@@ -1,40 +1,43 @@
 local TOCNAME, _ = ...
-local BOM = BuffomatAddon ---@type BuffomatAddon
+local BOM = BuffomatAddon ---@type BomAddon
 
 ---@class BomBuffRowModule
-local buffRowModule = BuffomatModule.DeclareModule("Ui/BuffRow") ---@type BomBuffRowModule
+local buffRowModule = BuffomatModule.New("Ui/BuffRow") ---@type BomBuffRowModule
 
+local managedUiModule = BuffomatModule.Import("Ui/MyButton") ---@type BomUiMyButtonModule
 local uiButtonModule = BuffomatModule.Import("Ui/UiButton") ---@type BomUiButtonModule
 
 ---@class BomBuffRowFrames
----@field info BomControl Icon for spell or item which provides the buff
----@field Enable BomControl Checkbox for enable/disable buff
----@field Set BomControl Status checkbox for tracking/auras/seals
----@field SelfCast BomControl Checkbox toggle to self cast only
----@field ForceCastButton BomControl Button to add/remove from force cast list
----@field ExcludeButton BomControl Button to add/remove from exclude list
----@field Whisper BomControl Button to whisper on buff expiration
----@field buff BomControl Text label with buff name
----@field MainHand BomControl Toggle to enchant main hand
----@field OffHand BomControl Toggle to enchant off-hand
----@field tank BomControl Toggle to buff tanks
----@field pet BomControl Toggle to buff pets
----@field WARRIOR BomControl Per class setting for class-specific buffs
----@field MAGE BomControl Per class setting for class-specific buffs
----@field ROGUE BomControl Per class setting for class-specific buffs
----@field DRUID BomControl Per class setting for class-specific buffs
----@field HUNTER BomControl Per class setting for class-specific buffs
----@field SHAMAN BomControl Per class setting for class-specific buffs
----@field PRIEST BomControl Per class setting for class-specific buffs
----@field WARLOCK BomControl Per class setting for class-specific buffs
----@field PALADIN BomControl Per class setting for class-specific buffs
+---@field info BomLegacyControl Icon for spell or item which provides the buff
+---@field Enable BomLegacyControl Checkbox for enable/disable buff
+---@field Set BomLegacyControl Status checkbox for tracking/auras/seals
+---@field SelfCast BomLegacyControl Checkbox toggle to self cast only
+---@field ForceCastButton BomLegacyControl Button to add/remove from force cast list
+---@field ExcludeButton BomLegacyControl Button to add/remove from exclude list
+---@field Whisper BomLegacyControl Button to whisper on buff expiration
+---@field buff BomLegacyControl Text label with buff name
+---@field buffNameLabel BomControl Text label for buff name
+---@field MainHand BomLegacyControl Toggle to enchant main hand
+---@field OffHand BomLegacyControl Toggle to enchant off-hand
+---@field tank BomLegacyControl Toggle to buff tanks
+---@field pet BomLegacyControl Toggle to buff pets
+---@field WARRIOR BomLegacyControl Per class setting for class-specific buffs
+---@field MAGE BomLegacyControl Per class setting for class-specific buffs
+---@field ROGUE BomLegacyControl Per class setting for class-specific buffs
+---@field DRUID BomLegacyControl Per class setting for class-specific buffs
+---@field HUNTER BomLegacyControl Per class setting for class-specific buffs
+---@field SHAMAN BomLegacyControl Per class setting for class-specific buffs
+---@field PRIEST BomLegacyControl Per class setting for class-specific buffs
+---@field WARLOCK BomLegacyControl Per class setting for class-specific buffs
+---@field PALADIN BomLegacyControl Per class setting for class-specific buffs
+---@field cancelBuffLabel BomControl Text label for buff cancel row (in combat or always)
 
 local buffRowClass = {} ---@type BomBuffRowFrames
 buffRowClass.__index = buffRowClass
 
 ---Creates a new Buff Row UI
 ---@return BomBuffRowFrames
-function buffRowModule:new()
+function buffRowModule:New()
   local newRow = {} ---@type BomBuffRowFrames
   setmetatable(newRow, buffRowClass)
   return newRow
@@ -44,7 +47,7 @@ end
 ---@param tooltip string
 function buffRowClass:CreateEnableCheckbox(tooltip)
   if self.Enable == nil then
-    self.Enable = BOM.CreateManagedButton(
+    self.Enable = managedUiModule:CreateManagedButton(
             BomC_SpellTab_Scroll_Child,
             BOM.ICON_OPT_ENABLED,
             BOM.ICON_OPT_DISABLED)
@@ -57,10 +60,10 @@ function buffRowClass:CreateEnableCheckbox(tooltip)
 end
 
 ---@return BomControlModule Created or pre-existing status on/off image
----@param spell BomSpellDef
+---@param spell BomBuffDefinition
 function buffRowClass:CreateStatusCheckboxImage(spell)
   if self.Set == nil then
-    self.Set = BOM.CreateMyButtonSecure(
+    self.Set = managedUiModule:CreateMyButtonSecure(
             BomC_SpellTab_Scroll_Child,
             BOM.ICON_CHECKED,
             BOM.ICON_CHECKED_OFF)
@@ -70,10 +73,10 @@ function buffRowClass:CreateStatusCheckboxImage(spell)
   return self.Enable
 end
 
----@param spell BomSpellDef
+---@param spell BomBuffDefinition
 function buffRowClass:CreateInfoIcon(spell)
   if self.info == nil then
-    self.info = BOM.CreateManagedButton(
+    self.info = managedUiModule:CreateManagedButton(
             BomC_SpellTab_Scroll_Child,
             BOM.ICON_EMPTY,
             nil,
@@ -97,14 +100,15 @@ end
 function buffRowClass:CreateBuffLabel(text)
   self.buff = BomC_SpellTab_Scroll_Child:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   self.buff:SetText(text)
+  managedUiModule.ManageControl(self.buff)
 
   return self.buff
 end
 
----@return BomControl
+---@return BomLegacyControl
 function buffRowClass:CreateMainhandToggle(tooltip)
   if self.MainHand == nil then
-    self.MainHand = BOM.CreateManagedButton(
+    self.MainHand = managedUiModule:CreateManagedButton(
             BomC_SpellTab_Scroll_Child,
             BOM.IconMainHandOn,
             BOM.IconMainHandOff,
@@ -118,10 +122,10 @@ function buffRowClass:CreateMainhandToggle(tooltip)
 end
 
 ---@param tooltip string
----@return BomControl
+---@return BomLegacyControl
 function buffRowClass:CreateOffhandToggle(tooltip)
   if self.OffHand == nil then
-    self.OffHand = BOM.CreateManagedButton(
+    self.OffHand = managedUiModule:CreateManagedButton(
             BomC_SpellTab_Scroll_Child,
             BOM.IconSecondaryHandOn,
             BOM.IconSecondaryHandOff,
@@ -135,10 +139,10 @@ function buffRowClass:CreateOffhandToggle(tooltip)
 end
 
 ---@param tooltip string
----@return BomControl
+---@return BomLegacyControl
 function buffRowClass:CreateWhisperToggle(tooltip)
   if self.Whisper == nil then
-    self.Whisper = BOM.CreateManagedButton(
+    self.Whisper = managedUiModule:CreateManagedButton(
             BomC_SpellTab_Scroll_Child,
             BOM.ICON_WHISPER_ON,
             BOM.ICON_WHISPER_OFF)
@@ -150,10 +154,10 @@ function buffRowClass:CreateWhisperToggle(tooltip)
 end
 
 ---@param tooltip string
----@return BomControl
+---@return BomLegacyControl
 function buffRowClass:CreateSelfCastToggle(tooltip)
   if self.SelfCast == nil then
-    self.SelfCast = BOM.CreateManagedButton(
+    self.SelfCast = managedUiModule:CreateManagedButton(
             BomC_SpellTab_Scroll_Child,
             BOM.ICON_SELF_CAST_ON,
             BOM.ICON_SELF_CAST_OFF)
@@ -165,10 +169,10 @@ function buffRowClass:CreateSelfCastToggle(tooltip)
 end
 
 ---@param tooltip string
----@return BomControl
+---@return BomLegacyControl
 function buffRowClass:CreateClassToggle(class, tooltip, onClick)
   if self[class] == nil then
-    self[class] = BOM.CreateManagedButton(
+    self[class] = managedUiModule:CreateManagedButton(
             BomC_SpellTab_Scroll_Child,
             BOM.CLASS_ICONS_ATLAS,
             BOM.ICON_EMPTY,
@@ -182,10 +186,10 @@ function buffRowClass:CreateClassToggle(class, tooltip, onClick)
 end
 
 ---@param tooltip string
----@return BomControl
+---@return BomLegacyControl
 function buffRowClass:CreateTankToggle(tooltip, onClick)
   if self.tank == nil then
-    self.tank = BOM.CreateManagedButton(
+    self.tank = managedUiModule:CreateManagedButton(
             BomC_SpellTab_Scroll_Child,
             BOM.ICON_TANK,
             BOM.ICON_EMPTY,
@@ -199,10 +203,10 @@ function buffRowClass:CreateTankToggle(tooltip, onClick)
 end
 
 ---@param tooltip string
----@return BomControl
+---@return BomLegacyControl
 function buffRowClass:CreatePetToggle(tooltip, onClick)
   if self.pet == nil then
-    self.pet = BOM.CreateManagedButton(
+    self.pet = managedUiModule:CreateManagedButton(
             BomC_SpellTab_Scroll_Child,
             BOM.ICON_PET,
             BOM.ICON_EMPTY,
@@ -216,7 +220,7 @@ function buffRowClass:CreatePetToggle(tooltip, onClick)
 end
 
 ---@param tooltip string
----@return BomControl
+---@return BomLegacyControl
 function buffRowClass:CreateForceCastToggle(tooltip, spell)
   if self.ForceCastButton == nil then
     self.ForceCastButton = uiButtonModule:CreateSmallButton(
@@ -232,7 +236,7 @@ function buffRowClass:CreateForceCastToggle(tooltip, spell)
 end
 
 ---@param tooltip string
----@return BomControl
+---@return BomLegacyControl
 function buffRowClass:CreateExcludeToggle(tooltip, spell)
   if self.ExcludeButton == nil then
     self.ExcludeButton = uiButtonModule:CreateSmallButton(

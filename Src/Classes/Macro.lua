@@ -1,8 +1,8 @@
 local TOCNAME, _ = ...
-local BOM = BuffomatAddon ---@type BuffomatAddon
+local BOM = BuffomatAddon ---@type BomAddon
 
 ---@class BomMacroModule
-local macroModule = BuffomatModule.DeclareModule("Macro") ---@type BomMacroModule
+local macroModule = BuffomatModule.New("Macro") ---@type BomMacroModule
 
 local constModule = BuffomatModule.Import("Const") ---@type BomConstModule
 local _t = BuffomatModule.Import("Languages") ---@type BomLanguagesModule
@@ -79,7 +79,7 @@ function BOM.Class.Macro.Recreate(self)
     if perChar < MAX_CHARACTER_MACROS then
       isChar = 1
     elseif perAccount >= MAX_ACCOUNT_MACROS then
-      BOM:Print(_t("MsgNeedOneMacroSlot"))
+      BOM:Print(_t("castButton.NoMacroSlots"))
       return
     end
 

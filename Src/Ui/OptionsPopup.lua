@@ -1,13 +1,15 @@
 local TOCNAME, _ = ...
-local BOM = BuffomatAddon ---@type BuffomatAddon
+local BOM = BuffomatAddon ---@type BomAddon
 
 ---@class BomOptionsPopupModule
----@field behaviourSettings table<number, table> A list of {Key name, Default} for 'Profile' settings
-local optionsPopupModule = BuffomatModule.DeclareModule("OptionsPopup") ---@type BomOptionsPopupModule
+-- -@field behaviourSettings table<number, table> A list of {Key name, Default} for 'Profile' settings
+local optionsPopupModule = BuffomatModule.New("OptionsPopup") ---@type BomOptionsPopupModule
 
+local buffomatModule = BuffomatModule.Import("Buffomat") ---@type BomBuffomatModule
 local constModule = BuffomatModule.Import("Const") ---@type BomConstModule
-local spellDefModule = BuffomatModule.Import("SpellDef") ---@type BomSpellDefModule
+local buffDefModule = BuffomatModule.Import("BuffDefinition") ---@type BomBuffDefinitionModule
 
+---@deprecated See options.lua, and defaults in sharedState.lua and characterState.lua
 optionsPopupModule.behaviourSettings = {
   { "AutoOpen", true },
   { "ScanInRestArea", false },
@@ -38,7 +40,7 @@ optionsPopupModule.behaviourSettings = {
   { "SelfFirst", false },
   { "DontUseConsumables", false },
   { "SlowerHardware", false },
-  { "HideSomeoneIsDrinking", false },
+  { "SomeoneIsDrinking", false },
 }
 
 local _t = BuffomatModule.Import("Languages") ---@type BomLanguagesModule
@@ -55,7 +57,7 @@ local L = setmetatable(
         })
 
 ---Makes a tuple to pass to the menubuilder to display a settings checkbox in popup menu
----@param db table - BomSharedState reference to read settings from it
+---@param db table - BuffomatShared reference to read settings from it
 ---@param var string Variable name from optionsPopupModule.BehaviourSettings
 function optionsPopupModule:MakeSettingsRow(db, var)
   return L["options.short." .. var], false, db, var
@@ -63,6 +65,28 @@ end
 
 local function bomOpenOptions()
   LibStub("AceConfigDialog-3.0"):Open(constModule.SHORT_TITLE)
+end
+
+---Populate the [⚙] popup menu: Submenu "Quick Options"
+---@deprecated
+function optionsPopupModule:PopupQuickOptions()
+  BOM.PopupDynamic:SubMenu(L["popup.QuickSettings"], "subSettings")
+
+  for i, set in ipairs(self.behaviourSettings) do
+    BOM.PopupDynamic:AddItem(self:MakeSettingsRow(buffomatModule.shared, set[1]))
+  end
+
+  -- -------------------------------------------
+  -- Watch in Raid group -> 1 2 3 4 5 6 7 8
+  -- -------------------------------------------
+  BOM.PopupDynamic:AddItem()
+  BOM.PopupDynamic:SubMenu(L["HeaderWatchGroup"], "subGroup")
+
+  for i = 1, 8 do
+    BOM.PopupDynamic:AddItem(i, "keep", buffomatModule.character.WatchGroup, i)
+  end
+
+  BOM.PopupDynamic:SubMenu()
 end
 
 ---Populate the [⚙] popup menu
@@ -76,23 +100,29 @@ function optionsPopupModule:Setup(control, minimap)
   if minimap then
     BOM.PopupDynamic:AddItem(L.BtnOpen, false, BOM.ShowWindow)
     BOM.PopupDynamic:AddItem()
-    BOM.PopupDynamic:AddItem(_t("options.short.ShowMinimapButton"), false, BOM.SharedState.Minimap, "visible")
-    BOM.PopupDynamic:AddItem(_t("options.short.LockMinimapButton"), false, BOM.SharedState.Minimap, "lock")
-    BOM.PopupDynamic:AddItem(_t("options.short.LockMinimapButtonDistance"), false, BOM.SharedState.Minimap, "lockDistance")
+    BOM.PopupDynamic:AddItem(_t("options.short.ShowMinimapButton"), false,
+            buffomatModule.shared.Minimap, "visible")
+    BOM.PopupDynamic:AddItem(_t("options.short.LockMinimapButton"), false,
+            buffomatModule.shared.Minimap, "lock")
+    BOM.PopupDynamic:AddItem(_t("options.short.LockMinimapButtonDistance"), false,
+            buffomatModule.shared.Minimap, "lockDistance")
     BOM.PopupDynamic:AddItem()
   end
 
   -- --------------------------------------------
   -- Use Profiles checkbox and submenu
   -- --------------------------------------------
-  BOM.PopupDynamic:AddItem(L["options.short.UseProfiles"], false, BOM.CharacterState, "UseProfiles")
+  BOM.PopupDynamic:AddItem(L["options.short.UseProfiles"], false,
+          buffomatModule.character, "UseProfiles")
 
-  if BOM.CharacterState.UseProfiles then
+  if buffomatModule.character.UseProfiles then
     BOM.PopupDynamic:SubMenu(L["HeaderProfiles"], "subProfiles")
-    BOM.PopupDynamic:AddItem(L["profile_auto"], false, BOM.ChooseProfile, "auto")
+    BOM.PopupDynamic:AddItem(L["profile_auto"], false,
+            buffomatModule.ChooseProfile, "auto")
 
     for _i, profile in pairs(BOM.ALL_PROFILES) do
-      BOM.PopupDynamic:AddItem(L["profile_" .. profile], false, BOM.ChooseProfile, profile)
+      BOM.PopupDynamic:AddItem(L["profile_" .. profile], false,
+              buffomatModule.ChooseProfile, profile)
     end
 
     BOM.PopupDynamic:SubMenu()
@@ -107,7 +137,7 @@ function optionsPopupModule:Setup(control, minimap)
     if not spell.isConsumable then
       BOM.PopupDynamic:AddItem(spell.singleLink or spell.singleText,
               "keep",
-              spellDefModule:GetProfileSpell(spell.ConfigID),
+              buffDefModule:GetProfileSpell(spell.buffId),
               "Enable")
     end
   end
@@ -118,26 +148,8 @@ function optionsPopupModule:Setup(control, minimap)
   end
 
   BOM.PopupDynamic:AddItem()
-  BOM.PopupDynamic:SubMenu(L["popup.QuickSettings"], "subSettings")
-
-  for i, set in ipairs(self.behaviourSettings) do
-    BOM.PopupDynamic:AddItem(self:MakeSettingsRow(BOM.SharedState, set[1]))
-  end
-
-  -- -------------------------------------------
-  -- Watch in Raid group -> 1 2 3 4 5 6 7 8
-  -- -------------------------------------------
-  BOM.PopupDynamic:AddItem()
-  BOM.PopupDynamic:SubMenu(L["HeaderWatchGroup"], "subGroup")
-
-  for i = 1, 8 do
-    BOM.PopupDynamic:AddItem(i, "keep", BomCharacterState.WatchGroup, i)
-  end
-
-  BOM.PopupDynamic:SubMenu()
-
+  --self:PopupQuickOptions()
   BOM.PopupDynamic:AddItem(L.BtnSettings, false, bomOpenOptions, 1)
-  --BOM.PopupDynamic:AddItem(L["BtnCancel"], false)
 
   BOM.PopupDynamic:Show(control or "cursor", 0, 0)
 end

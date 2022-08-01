@@ -1,11 +1,12 @@
 local TOCNAME, _ = ...
-local BOM = BuffomatAddon ---@type BuffomatAddon
+local BOM = BuffomatAddon ---@type BomAddon
 
 ---@class BomEventsModule
-local eventsModule = BuffomatModule.DeclareModule("Events") ---@type BomEventsModule
+local eventsModule = BuffomatModule.New("Events") ---@type BomEventsModule
 
+local buffomatModule = BuffomatModule.Import("Buffomat") ---@type BomBuffomatModule
 local constModule = BuffomatModule.Import("Const") ---@type BomConstModule
-local allSpellsModule = BuffomatModule.Import("AllSpells") ---@type BomAllSpellsModule
+local allBuffsModule = BuffomatModule.Import("AllBuffs") ---@type BomAllBuffsModule
 local spellButtonsTabModule = BuffomatModule.Import("Ui/SpellButtonsTab") ---@type BomSpellButtonsTabModule
 local spellSetupModule = BuffomatModule.Import("SpellSetup") ---@type BomSpellSetupModule
 local taskScanModule = BuffomatModule.Import("TaskScan") ---@type BomTaskScanModule
@@ -120,7 +121,7 @@ local oneTimeLoadItemsAndSpells = false
 local function Event_LoadingStop()
   if not oneTimeLoadItemsAndSpells then
     oneTimeLoadItemsAndSpells = true
-    allSpellsModule:LoadItemsAndSpells()
+    allBuffsModule:LoadItemsAndSpells()
   end
 
   BOM.LoadingScreenTimeOut = GetTime() + constModule.LOADING_SCREEN_TIMEOUT
@@ -143,7 +144,7 @@ local function Event_PLAYER_TARGET_CHANGED()
     BOM.lastTarget = nil
   end
 
-  if not BOM.SharedState.BuffTarget then
+  if not buffomatModule.shared.BuffTarget then
     return
   end
 
@@ -160,7 +161,7 @@ local function Event_PLAYER_TARGET_CHANGED()
   if newName ~= BOM.SaveTargetName then
     BOM.SaveTargetName = newName
     BOM.SetForceUpdate("PlayerTargetChanged")
-    BOM.UpdateScan("PlayerTargetChanged")
+    taskScanModule:UpdateScan("PlayerTargetChanged")
   end
 end
 
@@ -179,7 +180,7 @@ local function Event_COMBAT_LOG_EVENT_UNFILTERED()
       --print("dead",destName)
       BOM.SetForceUpdate("Evt UNIT_DIED")
 
-    elseif BOM.SharedState.Duration[spellName] then
+    elseif buffomatModule.shared.Duration[spellName] then
       if bit.band(sourceFlags, COMBATLOG_OBJECT_AFFILIATION_MINE) > 0 then
         if event == "SPELL_CAST_SUCCESS" then
 
@@ -215,24 +216,24 @@ end
 ---@param message table
 local function Event_UI_ERROR_MESSAGE(errorType, message)
   if tContains(eventsModule.ERR_NOT_STANDING, message) then
-    if BOM.SharedState.AutoStand then
+    if buffomatModule.shared.AutoStand then
       UIErrorsFrame:Clear()
       DoEmote("STAND")
     end
 
   elseif tContains(eventsModule.ERR_IS_MOUNTED, message) then
     local flying = false -- prevent dismount in flight, OUCH!
-    if BOM.TBC then
-      flying = IsFlying() and not BOM.SharedState.AutoDismountFlying
+    if BOM.IsTBC then
+      flying = IsFlying() and not buffomatModule.shared.AutoDismountFlying
     end
     if not flying then
-      if BOM.SharedState.AutoDismount then
+      if buffomatModule.shared.AutoDismount then
         UIErrorsFrame:Clear()
         Dismount()
       end
     end
 
-  elseif BOM.SharedState.AutoDisTravel
+  elseif buffomatModule.shared.AutoDisTravel
           and tContains(eventsModule.ERR_IS_SHAPESHIFT, message)
           and BOM.CancelShapeShift() then
     UIErrorsFrame:Clear()
@@ -251,6 +252,7 @@ local function Event_UI_ERROR_MESSAGE(errorType, message)
 end
 
 -----PLAYER_LEVEL_UP Event
+--- Should also fire spellbook change event and we handle there
 --local function Event_PLAYER_LEVEL_UP(level)
 --  -- TODO: Rebuild the UI buttons for new spells which appeared due to level up
 --  --BOM.SetupSpells()
@@ -313,14 +315,17 @@ end
 
 local function Event_SpellsChanged()
   spellSetupModule:SetupAvailableSpells()
-  BOM.SetForceUpdate("event Spells Changed")
-  spellButtonsTabModule.spellTabsCreatedFlag = false
+  BOM.SetForceUpdate("event Spells Changed 1")
+  --spellButtonsTabModule.spellTabsCreatedFlag = false
 
   --BOM.OptionsInsertSpells()
   spellButtonsTabModule:UpdateSpellsTab("event Spells Changed")
-  BOM.SetForceUpdate("event Spells Changed")
-  BOM.UpdateScan("event Spells Changed")
+  BOM.SetForceUpdate("event Spells Changed 2")
+  taskScanModule:UpdateScan("event Spells Changed")
 end
+
+-- Global accessor to refresh the spells tab
+BOM.OnSpellsChanged = Event_SpellsChanged
 
 local function Event_ADDON_LOADED(arg1)
 end
@@ -339,6 +344,7 @@ local function Event_Bag()
 end
 
 function eventsModule:InitEvents()
+  -- Should also fire spellbook change event and we handle there
   --BuffomatAddon:RegisterEvent("PLAYER_LEVEL_UP", Event_PLAYER_LEVEL_UP)
 
   -- Events which might change active state of Buffomat
