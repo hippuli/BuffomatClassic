@@ -588,6 +588,22 @@ function spellButtonsTabModule:ClearTab()
   end
 end
 
+spellButtonsTabModule.lastFullRebuild = 0
+spellButtonsTabModule.LIMIT_FULL_REBUILD_PER = 1.0 -- no more than 1 per second
+
+--- Do not run more often than every 1 second
+function spellButtonsTabModule:ClearRebuildSpellButtonsTab()
+  local now = GetTime()
+  if now - self.lastFullRebuild > self.LIMIT_FULL_REBUILD_PER then
+    self.lastFullRebuild = now
+    BOM.ForceUpdateSpellsTab = false
+    self:ClearTab()
+    self:CreateTab(UnitFactionGroup("player") == "Horde")
+  else
+    BOM.ForceUpdateSpellsTab = true
+  end
+end
+
 ---UpdateTab - update spells in one of the spell tabs
 ---BOM.SelectedSpells: table - Spells which were selected for display in Scan function, their
 ---state will be displayed in a spell tab
@@ -601,12 +617,7 @@ function spellButtonsTabModule:UpdateSpellsTab(caller)
     return
   end
 
-  self:ClearTab()
-  --if not self.spellTabsCreatedFlag then
-  --BOM.HideAllManagedButtons()
-  self:CreateTab(UnitFactionGroup("player") == "Horde")
-  --self.spellTabsCreatedFlag = true
-  --end
+  self:ClearRebuildSpellButtonsTab()
 
   local _className, playerClass, _classId = UnitClass("player")
 
