@@ -1,5 +1,1 @@
 package-as: BuffomatClassic
-
-move-folders:
-  BuffomatClassic/BuffomatClassic: BuffomatClassic
-  BuffomatClassic/BuffomatClassicTBC: BuffomatClassicTBC
