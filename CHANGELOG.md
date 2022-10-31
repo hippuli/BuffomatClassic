@@ -1,5 +1,21 @@
 # Changelog
 
+## Buffomat Classic 2022.10.4, 10.5
+
+- Spell tab update is now hard limited in frequency to combat the raid lag.
+- Buff scan update is also hard limited in frequency for the same reason.
+- Horn of Winter rank 2 added
+- Option to play sound when Buffomat has something to do
+- Unit cache is less aggressive, this should help buffs to update faster
+
+## Buffomat Classic 2022.10.1, -10.2
+
+- Group buffs will now apply to self, if no group member in range. This needs 
+  to be tested in real raid so will give it some time before promoting to 
+  release.
+- Fixes for group buff range check.
+- Intellect scrolls?
+
 ## Buffomat Classic 2022.9.6
 
 - [Pet] Pet food is now available for all classes not just hunters

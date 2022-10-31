@@ -17,6 +17,8 @@ sharedSettingsModule.defaults = {
 ---@field distance number
 
 ---@class BomSharedSettings Current character state snapshots per profile
+---@field DebugLogging boolean
+---@field PlaySoundWhenTask string Play a sound when task list is not empty
 ---@field Minimap BomMinimapSettings
 ---@field SpellGreaterEqualThan table
 ---@field CustomLocales table
@@ -141,5 +143,6 @@ function sharedSettingsModule:Defaults()
       position     = 0,
       distance     = 0
     },
+    PlaySoundWhenTask = "-",
   }
 end

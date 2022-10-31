@@ -52,8 +52,8 @@ function buffChecksModule:TimeCheck(expirationTime, maxDuration)
 
   if remainingTimeTrigger + GetTime() < expirationTime then
     expirationTime = expirationTime - remainingTimeTrigger
-    if expirationTime < BOM.MinTimer then
-      BOM.MinTimer = expirationTime
+    if expirationTime < BOM.nextCooldownDue then
+      BOM.nextCooldownDue = expirationTime
     end
     return true
   end
@@ -219,7 +219,7 @@ function buffChecksModule:PlayerNeedsTracking(buff, playerUnit, party)
   if (buff.singleId == spellIdsModule.FindHerbs or
           buff.singleId == spellIdsModule.FindMinerals)
           and GetShapeshiftFormID() == CAT_FORM
-          and buffDefModule:IsSpellEnabled(spellIdsModule.Druid_TrackHumanoids) then
+          and buffDefModule:IsBuffEnabled(spellIdsModule.Druid_TrackHumanoids) then
     -- Do nothing - ignore herbs and minerals in catform if enabled track humanoids
 
   elseif not self:IsTrackingActive(buff)
