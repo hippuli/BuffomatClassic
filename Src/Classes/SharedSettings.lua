@@ -1,32 +1,35 @@
 local TOCNAME, _ = ...
 local BOM = BuffomatAddon ---@type BomAddon
 
----@class BomSharedSettingsModule
-local sharedSettingsModule = BuffomatModule.New("SharedSettings") ---@type BomSharedSettingsModule
+---@shape BomSharedSettingsModule
+local sharedSettingsModule = BomModuleManager.sharedSettingsModule ---@type BomSharedSettingsModule
 
 --- Values to use when the saved data is evolving with an update, and the key doesn't exist
 sharedSettingsModule.defaults = {
   SomeoneIsDrinking = "low-prio",
 }
 
----@class BomMinimapSettings
+---@shape BomMinimapSettings
 ---@field visible boolean
 ---@field lock boolean
 ---@field lockDistance boolean
 ---@field position number
 ---@field distance number
 
----@class BomSharedSettings Current character state snapshots per profile
+---@shape BomSharedSettings Current character state snapshots per profile
+---@field Cache BomItemCache Caches responses from GetItemInfo() and GetSpellInfo()
+---@field X number Window horizontal position
+---@field Y number Window vertical position
+---@field Width number Window width
+---@field Height number Window height
 ---@field DebugLogging boolean
 ---@field PlaySoundWhenTask string Play a sound when task list is not empty
 ---@field Minimap BomMinimapSettings
 ---@field SpellGreaterEqualThan table
 ---@field CustomLocales table
----@field CustomSpells table Additional spells from the config file. Deprecated
----@field CustomCancelBuff table Additional cancel spells. Deprecated
 ---@field UIWindowScale number
 ---@field AutoOpen boolean
----@field FadeWhenNothingToDo boolean Allows Buffomat window to fade when nothing to do
+---@field FadeWhenNothingToDo number Allows Buffomat window to fade when nothing to do
 ---@field UseProfiles boolean
 ---@field SlowerHardware boolean
 ---@field ScanInRestArea boolean
@@ -46,7 +49,7 @@ sharedSettingsModule.defaults = {
 ---@field NoGroupBuff boolean
 ---@field ResGhost boolean
 ---@field ReplaceSingle boolean
----@field ArgentumDawn boolean
+---@field ReputationTrinket boolean
 ---@field Carrot boolean
 ---@field MainHand boolean
 ---@field SecondaryHand boolean
@@ -56,6 +59,7 @@ sharedSettingsModule.defaults = {
 ---@field SelfFirst boolean
 ---@field DontUseConsumables boolean
 ---@field SomeoneIsDrinking string "low-prio" - Show as a comment; "hide" - no show; "show" - Show as a task and show buffomat window
+---@field HideSomeoneIsDrinking nil
 ---@field ActivateBomOnSpiritTap number Percent mana to deactivate Buffomat if Spirit Tap is active for a priest
 ---@field MinBuff number How many missing buffs to prefer group buff
 ---@field MinBlessing number
@@ -64,8 +68,9 @@ sharedSettingsModule.defaults = {
 ---@field Time600 number
 ---@field Time1800 number
 ---@field Time3600 number
+---@field Duration BomSpellDurationsTable Copy from character settings
+---@field ShamanFlametongueRanked boolean Try and use rank 9 on mainhand for shaman when buffing double Flametongue
 
----@type BomSharedSettings
 local sharedStateClass = {}
 sharedStateClass.__index = sharedStateClass
 
@@ -76,8 +81,6 @@ function sharedSettingsModule:New(init)
   tab.Minimap = tab.Minimap or {}
   tab.SpellGreaterEqualThan = tab.SpellGreaterEqualThan or {}
   tab.CustomLocales = tab.CustomLocales or {}
-  tab.CustomSpells = tab.CustomSpells or {}
-  tab.CustomCancelBuff = tab.CustomCancelBuff or {}
 
   -- Upgrades from older versions (SomeoneIsDrinking was renamed from HideSomeoneIsDrinking)
   tab.HideSomeoneIsDrinking = nil -- delete old key
@@ -89,7 +92,7 @@ end
 
 ---@return BomSharedSettings
 function sharedSettingsModule:Defaults()
-  return {
+  return --[[---@type BomSharedSettings]] {
     UIWindowScale          = 1,
     AutoOpen               = true,
     FadeWhenNothingToDo    = 1.0,
@@ -115,7 +118,7 @@ function sharedSettingsModule:Defaults()
     NoGroupBuff            = false,
     ResGhost               = false,
     ReplaceSingle          = true,
-    ArgentumDawn           = true,
+    ReputationTrinket           = true,
     Carrot                 = true,
     MainHand               = false,
     SecondaryHand          = false,

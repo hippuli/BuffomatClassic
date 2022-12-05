@@ -1,191 +1,118 @@
 --local TOCNAME, _ = ...
 
----@class BomBuffomatModule
+---@shape BomBuffomatModule
+---@field [string] any
 ---@field shared BomSharedSettings Refers to BuffomatShared global
 ---@field character BomCharacterSettings Refers to BuffomatCharacter global
 ---@field currentProfileName string
 ---@field currentProfile BomProfile
----@field forceUpdateRequestedBy table<string, number> Reasons for force update, with count
-local buffomatModule = BuffomatModule.New("Buffomat") ---@type BomBuffomatModule
-buffomatModule.forceUpdateRequestedBy = {}
+---@field taskRescanRequestedBy {[string]: number} Reasons for force update, with count
+local buffomatModule = BomModuleManager.buffomatModule ---@type BomBuffomatModule
+buffomatModule.taskRescanRequestedBy = --[[---@type {[string]: number}]] {}
 
-local characterSettingsModule = BuffomatModule.New("CharacterSettings") ---@type BomCharacterSettingsModule
-local _t = BuffomatModule.Import("Languages") ---@type BomLanguagesModule
-local allBuffsModule = BuffomatModule.Import("AllBuffs") ---@type BomAllBuffsModule
-local characterStateModule = BuffomatModule.Import("CharacterSettings") ---@type BomCharacterSettingsModule
-local constModule = BuffomatModule.Import("Const") ---@type BomConstModule
-local eventsModule = BuffomatModule.Import("Events") ---@type BomEventsModule
-local languagesModule = BuffomatModule.Import("Languages") ---@type BomLanguagesModule
-local managedUiModule = BuffomatModule.New("Ui/MyButton") ---@type BomUiMyButtonModule
-local optionsModule = BuffomatModule.Import("Options") ---@type BomOptionsModule
-local optionsPopupModule = BuffomatModule.Import("OptionsPopup") ---@type BomOptionsPopupModule
-local profileModule = BuffomatModule.Import("Profile") ---@type BomProfileModule
-local sharedStateModule = BuffomatModule.Import("SharedSettings") ---@type BomSharedSettingsModule
-local spellButtonsTabModule = BuffomatModule.Import("Ui/SpellButtonsTab") ---@type BomSpellButtonsTabModule
-local taskScanModule = BuffomatModule.Import("TaskScan") ---@type BomTaskScanModule
-local toolboxModule = BuffomatModule.Import("Toolbox") ---@type BomToolboxModule
+local kvEnvModule = KvModuleManager.envModule
+local _t = BomModuleManager.languagesModule
+local allBuffsModule = BomModuleManager.allBuffsModule
+local characterSettingsModule = BomModuleManager.characterSettingsModule
+local characterStateModule = BomModuleManager.characterSettingsModule
+local constModule = BomModuleManager.constModule
+local eventsModule = BomModuleManager.eventsModule
+local languagesModule = BomModuleManager.languagesModule
+local macroModule = BomModuleManager.macroModule
+local managedUiModule = BomModuleManager.myButtonModule
+local optionsModule = BomModuleManager.optionsModule
+local optionsPopupModule = BomModuleManager.optionsPopupModule
+local partyModule = BomModuleManager.partyModule
+local popupModule = BomModuleManager.popupModule
+local profileModule = BomModuleManager.profileModule
+local sharedStateModule = BomModuleManager.sharedSettingsModule
+local slashModule = BomModuleManager.slashCommandsModule
+local spellButtonsTabModule = BomModuleManager.spellButtonsTabModule
+local taskScanModule = BomModuleManager.taskScanModule
+local texturesModule = BomModuleManager.texturesModule
+local toolboxModule = BomModuleManager.toolboxModule
+
+---@alias BomCastingState "cast"|"channel"|nil
 
 ---global, visible from XML files and from script console and chat commands
 ---@class BomAddon
----@field ScanModifier boolean Will update buffomat when modifier key is held down
----@field nextCooldownDue number Set this to next spell cooldown to force update
+---@field activePaladinAura nil|number Spell id of aura if an unique aura was casted (only one can be active)
+---@field activePaladinSeal nil|number Spell id of weapon seal, if an seal-type temporary enchant was used (only one can be active)
+---@field ALL_PROFILES BomProfileName[] Lists all buffomat profile names (group, solo... etc)
+---@field buffExchangeId table<number, number[]> Combines spell ids of spellrank flavours into main spell id
+---@field buffIgnoreAll number[] Having this buff on target excludes the target (phaseshifted imp for example)
+---@field cachedPlayerBag BomCachedPlayerBag Items in player's bag
+---@field cancelBuffs BomBuffDefinition[] All spells to be canceled on detection
+---@field cancelBuffSource string Unit who casted the buff to be auto-canceled
+---@field castFailedBuff BomBuffDefinition|nil
+---@field castFailedBuffTarget BomUnit|nil
+---@field castFailedSpellId number|nil
 ---@field checkCooldown number|nil Spell id to check cooldown for
----@field ForceUpdate boolean Set to true to force recheck buffs on timer
--- -@field ForceUpdateSpellsTab boolean Set to true to force clear and rebuild spells tab. This activity is throttled to 1 per second
----@field ALL_PROFILES table<string> Lists all buffomat profile names (group, solo... etc)
----@field RESURRECT_CLASS table<string> Classes who can resurrect others
----@field MANA_CLASSES table<string> Classes with mana resource
----@field locales BuffomatTranslations (same as BOM.L)
----@field L BuffomatTranslations (same as BOM.locales)
----@field AllBuffomatBuffs table<number, BomBuffDefinition> All spells known to Buffomat
----@field EnchantList table<number, table<number>> Spell ids mapping to enchant ids
----@field CancelBuffs table<number, BomBuffDefinition> All spells to be canceled on detection
----@field ItemCache table<number, BomItemCacheElement> Precreated precached items
----@field ActivePaladinAura nil|number Spell id of aura if an unique aura was casted (only one can be active)
----@field ActivePaladinSeal nil|number Spell id of weapon seal, if an seal-type temporary enchant was used (only one can be active)
----@field ForceProfile string|nil Nil will choose profile name automatically, otherwise this profile will be used
----@field ArgentumDawn table Equipped AD trinket: Spell to and zone ids to check
----@field BuffExchangeId table<number, table<number>> Combines spell ids of spellrank flavours into main spell id
----@field BuffIgnoreAll table<number> Having this buff on target excludes the target (phaseshifted imp for example)
----@field CachedHasItems table<string, CachedItem> Items in player's bag
----@field CancelBuffSource string Unit who casted the buff to be auto-canceled
----@field Carrot table Equipped Riding trinket: Spell to and zone ids to check
----@field CheckForError boolean Used by error suppression code
----@field CurrentProfile BomProfile Current profile from CharacterState.Profiles
--- -@field CharacterState BomCharacterState Copy of state only for the current character, with separate states per profile
--- -@field SharedState BomProfile Copy of state shared with all accounts
----@field DeclineHasResurrection boolean Set to true on combat start, stop, holding Alt, cleared on party update
----@field EnchantToSpell table<number, number> Reverse-maps enchant ids back to spells
----@field ForceTracking number|nil Defines icon id for enforced tracking
----@field ForceUpdate boolean Requests immediate spells/buffs refresh
----@field RepeatUpdate boolean Requests some sort of spells update similar to ForceUpdate
----@field IsMoving boolean Indicated that the player is moving (updated in event handlers)
----@field ItemList table<table<number>> Group different ranks of item together
----@field ItemListSpell table<number, number> Map itemid to spell?
----@field ItemListTarget table<number, string> Remember who casted item buff on you?
+---@field checkForError boolean Used by error suppression code
+---@field currentProfile BomProfile Current profile from CharacterState.Profiles
+---@field declineHasResurrection boolean Set to true on combat start, stop, holding Alt, cleared on party update
+---@field drinkingPersonCount number Used for warning "X persons is/are drinking"
+---@field AllDrink WowSpellId[] Used for warning "X persons is/are drinking"
+---@field enchantList {[WowSpellId]: number[]} Spell ids mapping to enchantment ids
+---@field forceProfile BomProfileName|nil Nil will choose profile name automatically, otherwise this profile will be used
+---@field forceTracking WowIconId|nil Defines icon id for enforced tracking
+---@field forceUpdate boolean Requests immediate spells/buffs refresh
+---@field inLoadingScreen boolean True while in the loading screen
+---@field isPlayerCasting BomCastingState Indicates that the player is currently casting (updated in event handlers)
+---@field isPlayerMoving boolean Indicated that the player is moving (updated in event handlers)
+---@field itemList number[][] Group different ranks of item together
+---@field lastAura BomBuffId|nil Buff id of active or last active aura
 ---@field lastTarget string|nil Last player's target
----@field ManaLimit number Player max mana
----@field PartyUpdateNeeded boolean Requests player party update
----@field PlayerCasting string|nil Indicates that the player is currently casting (updated in event handlers)
----@field SelectedSpells table<number, BomBuffDefinition>
----@field cancelForm table<number, number> Spell ids which cancel shapeshift form
----@field SpellIdIsSingle table<number, boolean> Whether spell ids are single buffs
----@field SpellIdtoConfig table<number, number> Maps spell ids to the key id of spell in the AllSpells
----@field SpellTabsCreatedFlag boolean Indicated spells tab already populated with controls
----@field SpellToSpell table<number, number> Maps spells ids to other spell ids
----@field TBC boolean Whether we are running TBC classic
----@field IsClassic boolean Whether we are running Classic Era or Season of Mastery
----@field WipeCachedItems boolean Command to reset cached items
----@field MinimapButton GPIMinimapButton Minimap button control
----@field legacyOptions BomLegacyUiOptions
----@field ICON_PET string
----@field ICON_OPT_ENABLED string
----@field ICON_OPT_DISABLED string
----@field ICON_SELF_CAST_ON string
----@field ICON_SELF_CAST_OFF string
----@field CLASS_ICONS_ATLAS string
----@field CLASS_ICONS_ATLAS_TEX_COORD string
----@field ICON_EMPTY string
----@field ICON_SETTING_ON string
----@field ICON_SETTING_OFF string
----@field ICON_WHISPER_ON string
----@field ICON_WHISPER_OFF string
----@field ICON_BUFF_ON string
----@field ICON_BUFF_OFF string
----@field ICON_DISABLED string
----@field ICON_TARGET_ON string
----@field ICON_TARGET_OFF string
----@field ICON_TARGET_EXCLUDE string
----@field ICON_CHECKED string
----@field ICON_CHECKED_OFF string
----@field ICON_GROUP string
----@field ICON_GROUP_ITEM string
----@field ICON_GROUP_NONE string
----@field ICON_GEAR string
----@field ICON_GEAR string
----@field IconAutoOpenOn string
----@field IconAutoOpenOnCoord table<number>
----@field IconAutoOpenOff string
----@field IconAutoOpenOffCoord table<number>
----@field IconDeathBlockOn string
----@field IconDeathBlockOff string
----@field IconDeathBlockOffCoord table<number>
----@field IconNoGroupBuffOn string
----@field IconNoGroupBuffOnCoord table<number>
----@field IconNoGroupBuffOff string
----@field IconNoGroupBuffOffCoord table<number>
----@field IconSameZoneOn string
----@field IconSameZoneOnCoord table<number>
----@field IconSameZoneOff string
----@field IconSameZoneOffCoord table<number>
----@field IconResGhostOn string
----@field IconResGhostOnCoord table<number>
----@field IconResGhostOff string
----@field IconResGhostOffCoord table<number>
----@field IconReplaceSingleOff string
----@field IconReplaceSingleOffCoord table<number>
----@field IconReplaceSingleOn string
----@field IconReplaceSingleOnCoord table<number>
----@field IconArgentumDawnOff string
----@field IconArgentumDawnOn string
----@field IconArgentumDawnOnCoord table<number>
----@field IconCarrotOff string
----@field IconCarrotOn string
----@field IconCarrotOnCoord table<number>
----@field IconMainHandOff string
----@field IconMainHandOn string
----@field IconMainHandOnCoord table<number>
----@field IconSecondaryHandOff string
----@field IconSecondaryHandOn string
----@field IconSecondaryHandOnCoord table<number>
----@field ICON_TANK string
----@field ICON_TANK_COORD table<number>
----@field ICON_PET string
----@field ICON_PET_COORD table<number>
----@field IconInPVPOff string
----@field IconInPVPOn string
----@field IconInPVPOnCoord table<number>
----@field IconInWorldOff string
----@field IconInWorldOn string
----@field IconInWorldOnCoord table<number>
----@field IconInInstanceOff string
----@field IconInInstanceOn string
----@field IconInInstanceOnCoord table<number>
----@field IconUseRankOff string
----@field IconUseRankOn string
----@field QuickSingleBuff BomLegacyControl Button for single/group buff toggling next to cast button
----@field SpellId table<string, table<string, number>> Map of spell name to id
----@field ItemId table<string, table<string, number>> Map of item name to id
----@field PopupDynamic BomPopupDynamic
+---@field loadingScreenTimeOut number|nil
+---@field theMacro BomMacro
+---@field MANA_CLASSES BomClassName[] Classes with mana resource
+---@field minimapButton BomMinimapButtonPlaceholder Minimap button control
+---@field nextCooldownDue number Set this to next spell cooldown to force update
+---@field isPartyUpdateNeeded boolean Requests player party update
+---@field popupMenuDynamic BomPopupDynamic
+---@field quickSingleBuffToggleButton BomGPIControl Button for single/group buff toggling next to cast button
+---@field repeatUpdate boolean Requests some sort of spells update similar to ForceUpdate
+---@field reputationTrinketZones BomReputationTrinketZones Equipped AD trinket: Spell to and zone ids to check
+---@field RESURRECT_CLASS BomClassName[] Classes who can resurrect others
+---@field ridingSpeedZones BomRidingSpeedZones Equipped Riding trinket: Spell to and zone ids to check
+---@field SaveTargetName string|nil
+---@field scanModifierKeyDown boolean Will update buffomat when modifier key is held down
+---@field somebodyIsGhost boolean [unused?] Someone in the party is a ghost
+---@field spellTabsCreatedFlag boolean Indicated spells tab already populated with controls
+---@field wipeCachedItems boolean Command to reset cached items on the next call to itemListCacheModule; TODO move to itemListCacheModule
+---@field Print fun(self: BomAddon, msg: string): void
+---@field RegisterEvent fun(self: BomAddon, event: string, handler: function): void
+---@field setupAvailableSpellsFn function
 
 BuffomatAddon = LibStub("AceAddon-3.0"):NewAddon(
         "Buffomat", "AceConsole-3.0", "AceEvent-3.0") ---@type BomAddon
 local BOM = BuffomatAddon
 
-local _, _, _, tocversion = GetBuildInfo()
-BOM.IsWotLK = (tocversion >= 30000 and tocversion <= 39999) -- TODO: change to WOTLK detection via WOW_PROJECT_..._CLASSIC
-BOM.HaveWotLK = BOM.IsWotLK
+---@shape BomCachedBagItem
+---@field a boolean Player has item
+---@field b number Bag
+---@field c number Slot
+---@field d number Count
 
-BOM.IsTBC = WOW_PROJECT_ID == WOW_PROJECT_BURNING_CRUSADE_CLASSIC
-BOM.HaveTBC = BOM.IsWotLK or BOM.IsTBC
+---@alias BomCachedPlayerBag table<string, BomCachedBagItem>
 
-BOM.IsClassic = WOW_PROJECT_ID == WOW_PROJECT_CLASSIC
+---@type table<string, BomCachedBagItem>
+BOM.cachedPlayerBag = {}
 
 ---Print a text with "BomDebug: " prefix in the game chat window
 ---@param t string
 function BOM:Debug(t)
   if buffomatModule.shared.DebugLogging then
-    DEFAULT_CHAT_FRAME:AddMessage(tostring(GetTime()) .. " " .. BOM.Color("883030", "BOM") .. t)
+    DEFAULT_CHAT_FRAME:AddMessage(tostring(GetTime()) .. " " .. buffomatModule:Color("883030", "BOM ") .. t)
   end
 end
 
-function BOM.Color(hex, text)
+function buffomatModule:Color(hex, text)
   return "|cff" .. hex .. text .. "|r"
 end
 
 ---Creates a string which will display a picture in a FontString
----@param texture string - path to UI texture file (for example can come from
----  GetContainerItemInfo(bag, slot) or spell info etc
+---@param texture WowIconId - path to UI texture file (for example can come from GetContainerItemInfo(bag, slot) or spell info etc
 function BOM.FormatTexture(texture)
   return string.format(constModule.ICON_FORMAT, texture)
 end
@@ -194,8 +121,8 @@ function BOM.BtnClose()
   BOM.HideWindow()
 end
 
-function BOM.BtnSettings(self)
-  optionsPopupModule:Setup(self)
+function BOM.BtnSettings(settingsButton)
+  optionsPopupModule:Setup(settingsButton, false)
 end
 
 ---Bound the the macro cast button in the buff tab
@@ -212,21 +139,27 @@ function buffomatModule:ClearForceUpdate(debugCallerLocation)
   if debugCallerLocation then
     BOM:Debug("clearForceUpdate from " .. debugCallerLocation)
   end
-  wipe(self.forceUpdateRequestedBy)
+  wipe(self.taskRescanRequestedBy)
 end
 
-function buffomatModule:SetForceUpdate(reason)
-  self.forceUpdateRequestedBy[reason] = (self.forceUpdateRequestedBy[reason] or 0) + 1
+---@param reason string
+function buffomatModule:RequestTaskRescan(reason)
+  self.taskRescanRequestedBy[reason] = (self.taskRescanRequestedBy[reason] or 0) + 1
+end
+
+---@param castingState BomCastingState
+function buffomatModule:SetPlayerCasting(castingState)
+  BOM.isPlayerCasting = castingState
 end
 
 -- Something changed (buff gained possibly?) update all spells and spell tabs
-function buffomatModule:OptionsUpdate()
-  buffomatModule:SetForceUpdate("optionsUpdate")
-  taskScanModule:ScanNow("OptionsUpdate")
+function buffomatModule.OptionsUpdate()
+  buffomatModule:RequestTaskRescan("optionsUpdate")
+  taskScanModule:ScanTasks("OptionsUpdate")
 
   spellButtonsTabModule:UpdateSpellsTab("OptionsUpdate")
   managedUiModule:UpdateAll()
-  BOM.MinimapButton.UpdatePosition()
+  BOM.minimapButton:UpdatePosition()
   --BOM.legacyOptions.DoCancel()
 end
 
@@ -245,25 +178,26 @@ end
 
 ---ChooseProfile
 ---BOM profile selection, using 'auto' by default
----@param profile table
+---@param profile BomProfileName
 function buffomatModule.ChooseProfile(profile)
-  if profile == nil or profil == "" or profile == "auto" then
-    BOM.ForceProfile = nil
+  if profile == nil or profile == "" or profile == "auto" then
+    BOM.forceProfile = nil
   elseif buffomatModule.character[profile] then
-    BOM.ForceProfile = profile
+    BOM.forceProfile = profile
   else
     BOM:Print("Unknown profile: " .. profile)
     return
   end
 
-  BOM.ClearSkip()
-  BOM.PopupDynamic:Wipe()
-  buffomatModule:SetForceUpdate("profileSelected")
-  taskScanModule:ScanNow("profileSelected")
+  taskScanModule:ClearSkip()
+  BOM.popupMenuDynamic:Wipe(nil)
+  buffomatModule:RequestTaskRescan("profileSelected")
+  taskScanModule:ScanTasks("profileSelected")
 
   buffomatModule:UseProfile(profile)
 end
 
+---@param profileName BomProfileName
 function buffomatModule:UseProfile(profileName)
   if buffomatModule.currentProfileName == profileName then
     return
@@ -271,14 +205,11 @@ function buffomatModule:UseProfile(profileName)
 
   buffomatModule.currentProfileName = profileName
 
-  local selectedProfile = self.character[profileName] or characterSettingsModule:New()
+  local selectedProfile = self.character[profileName] or characterSettingsModule:New(nil)
   buffomatModule.currentProfile = selectedProfile
 
-  BomC_MainWindow_Title:SetText(
-          BOM.FormatTexture(constModule.BOM_BEAR_ICON_FULLPATH)
-                  .. _t("profile_" .. profileName)
-                  -- .. " - " .. constModule.SHORT_TITLE
-  )
+  BomC_MainWindow_Title:SetText(BOM.FormatTexture(constModule.BOM_BEAR_ICON_FULLPATH) .. _t("profile_" .. profileName))
+  -- .. " - " .. constModule.SHORT_TITLE
 
   BOM:Print("Using profile " .. _t("profile_" .. profileName))
 end
@@ -344,23 +275,23 @@ end
 
 ---Creates small mybutton which toggles group buff setting, next to CAST button
 function BOM.CreateSingleBuffButton(parent_frame)
-  if BOM.QuickSingleBuff == nil then
-    BOM.QuickSingleBuff = managedUiModule:CreateManagedButton(
+  if BOM.quickSingleBuffToggleButton == nil then
+    BOM.quickSingleBuffToggleButton = managedUiModule:CreateManagedButton(
             parent_frame,
-            BOM.ICON_SELF_CAST_ON,
-            BOM.ICON_SELF_CAST_OFF,
+            texturesModule.ICON_SELF_CAST_ON,
+            texturesModule.ICON_SELF_CAST_OFF,
             nil, nil, nil, nil, nil)
-    BOM.QuickSingleBuff:SetPoint("BOTTOMLEFT", parent_frame, "BOTTOMRIGHT", -18, 0);
-    BOM.QuickSingleBuff:SetPoint("BOTTOMRIGHT", parent_frame, "BOTTOMRIGHT", -2, 12);
-    BOM.QuickSingleBuff:SetVariable(buffomatModule.shared, "NoGroupBuff")
-    BOM.QuickSingleBuff:SetOnClick(BOM.MyButtonOnClick)
-    BOM.Tool.TooltipText(
-            BOM.QuickSingleBuff,
-            BOM.FormatTexture(BOM.ICON_SELF_CAST_ON) .. " - " .. _t("options.long.NoGroupBuff")
+    BOM.quickSingleBuffToggleButton:SetPoint("BOTTOMLEFT", parent_frame, "BOTTOMRIGHT", -18, 0);
+    BOM.quickSingleBuffToggleButton:SetPoint("BOTTOMRIGHT", parent_frame, "BOTTOMRIGHT", -2, 12);
+    BOM.quickSingleBuffToggleButton:SetVariable(buffomatModule.shared, "NoGroupBuff", nil)
+    BOM.quickSingleBuffToggleButton:SetOnClick(BOM.MyButtonOnClick)
+    toolboxModule:TooltipText(
+            BOM.quickSingleBuffToggleButton,
+            BOM.FormatTexture(texturesModule.ICON_SELF_CAST_ON) .. " - " .. _t("options.long.NoGroupBuff")
                     .. "|n"
-                    .. BOM.FormatTexture(BOM.ICON_SELF_CAST_OFF) .. " - " .. _t("options.long.GroupBuff"))
+                    .. BOM.FormatTexture(texturesModule.ICON_SELF_CAST_OFF) .. " - " .. _t("options.long.GroupBuff"))
 
-    BOM.QuickSingleBuff:Show()
+    BOM.quickSingleBuffToggleButton:Show()
   end
 end
 
@@ -377,78 +308,114 @@ function buffomatModule:InitUI()
 
   toolboxModule:OnUpdate(self.UpdateTimer)
 
-  BOM.PopupDynamic = toolboxModule:CreatePopup(buffomatModule.OptionsUpdate)
+  BOM.popupMenuDynamic = popupModule:CreatePopup(buffomatModule.OptionsUpdate)
 
-  BOM.MinimapButton.Init(
+  local function onMinimapClick(self1, button)
+    if button == "LeftButton" then
+      buffomatModule:ToggleWindow()
+    else
+      optionsPopupModule:Setup(self1.button, true)
+    end
+  end
+  BOM.minimapButton:Init(
           self.shared.Minimap,
           constModule.BOM_BEAR_ICON_FULLPATH,
-          function(self, button)
-            if button == "LeftButton" then
-              buffomatModule:ToggleWindow()
-            else
-              optionsPopupModule:Setup(self.button, true)
-            end
-          end,
+          onMinimapClick,
           constModule.SHORT_TITLE)
 
   buffomatModule:OptionsInit()
-  BOM.PartyUpdateNeeded = true
-  BOM.RepeatUpdate = false
+  partyModule:InvalidatePartyCache()
+  BOM.repeatUpdate = false
 
   -- Make main frame draggable
-  BOM.Tool.EnableMoving(BomC_MainWindow, BOM.SaveWindowPosition)
+  toolboxModule:EnableMoving(BomC_MainWindow, BOM.SaveWindowPosition)
   BomC_MainWindow:SetMinResize(180, 90)
 
-  toolboxModule:AddTab(BomC_MainWindow, _t("TabBuff"), BomC_ListTab, true)
-  toolboxModule:AddTab(BomC_MainWindow, _t("TabSpells"), BomC_SpellTab, true)
+  toolboxModule:AddTab(--[[---@type WowControl]] BomC_MainWindow, _t("TabBuff"), BomC_ListTab, true)
+  toolboxModule:AddTab(--[[---@type WowControl]] BomC_MainWindow, _t("TabSpells"), BomC_SpellTab, true)
   toolboxModule:SelectTab(BomC_MainWindow, 1)
 end
 
 function buffomatModule:InitGlobalStates()
-  local loadedShared = (BomSharedState or BuffomatShared) or {} -- Upgrade from legacy Buffomat State if found
+  -- Upgrade from legacy Buffomat State if found
+  ---@type BomSharedSettings
+  local loadedShared = (--[[---@type BomSharedSettings]] BomSharedState or BuffomatShared) or {}
   if BomSharedState then
     BomSharedState = nil -- reset after reimport
   end
   BuffomatShared = sharedStateModule:New(loadedShared) ---@type BomSharedSettings
   buffomatModule.shared = BuffomatShared
 
-  local loadedChar = (BomCharacterState or BuffomatCharacter) or {} -- Upgrade from legacy Buffomat State if found
+  -- Upgrade from legacy Buffomat State if found
+  local loadedChar = (--[[---@type BomCharacterSettings]] BomCharacterState or BuffomatCharacter) or {}
   if BomCharacterState then
     BomCharacterState = nil -- reset after reimport
   end
-  BuffomatCharacter = characterStateModule:New(loadedChar) ---@type BomCharacterSettings
-  buffomatModule.character = BuffomatCharacter
+  buffomatModule.character = characterStateModule:New(loadedChar)
+  BuffomatCharacter = buffomatModule.character
 
-  if self.character.Duration then
-    self.shared.Duration = self.character.Duration
-    self.character.Duration = nil
+  if self.character.remainingDurations then
+    self.shared.Duration = self.character.remainingDurations
+    self.character.remainingDurations = --[[---@type BomSpellDurationsTable]] {}
   elseif not self.shared.Duration then
-    self.shared.Duration = {}
+    self.shared.Duration = --[[---@type BomSpellDurationsTable]] {}
   end
 
   if not self.character[profileModule.ALL_PROFILES[1]] then
-    self.character[profileModule.ALL_PROFILES[1]] = {
-      ["CancelBuff"] = self.character.CancelBuff,
-      ["Spell"]      = self.character.Spell,
-      ["LastAura"]   = self.character.LastAura,
-      ["LastSeal"]   = self.character.LastSeal,
-    }
+    local newProfile = profileModule:New()
+    --newProfile.CancelBuff = self.character.CancelBuff or {}
+    newProfile.Spell = self.character.Spell or {}
+    newProfile.LastAura = self.character.LastAura
+    newProfile.LastSeal = self.character.LastSeal
+    self.character[profileModule.ALL_PROFILES[1]] = newProfile
+
     self.character.CancelBuff = nil
-    self.character.Spell = nil
+    self.character.Spell = --[[---@type BomBuffDefinitionDict]] {}
     self.character.LastAura = nil
     self.character.LastSeal = nil
   end
 
   for i, each_profile in ipairs(profileModule.ALL_PROFILES) do
     if not self.character[each_profile] then
-      self.character[each_profile] = {}
+      self.character[each_profile] = profileModule:New()
     end
   end
 
   --BOM.SharedState = self.shared
   --BOM.CharacterState = self.character
   local soloProfile = profileModule:SoloProfile()
-  BOM.CurrentProfile = self.character[profileModule.ALL_PROFILES[soloProfile] or {}]
+  BOM.currentProfile = self.character[soloProfile or "solo"]
+end
+
+---@return BomSlashCommand[]
+function BuffomatAddon:MakeSlashCommand()
+  return --[[---@type BomSlashCommand[] ]] {
+    { command = "debug", description = "", handler = {
+      { command = "buff", description = "", handler = buffomatModule.Slash_DebugBuffList },
+      { command = "target", description = "", handler = buffomatModule.Slash_DebugBuffs, target = "target" },
+    },
+    },
+    { command = "profile", description = "", handler = {
+      { command = "%", description = _t("SlashProfile"), handler = buffomatModule.ChooseProfile }
+    },
+    },
+    { command = "spellbook", description = _t("SlashSpellBook"), handler = BOM.setupAvailableSpellsFn },
+    { command = "update", description = _t("SlashUpdate"),
+      handler = function()
+        buffomatModule:RequestTaskRescan("macro-/update")
+        taskScanModule:ScanTasks("macro-/update")
+      end },
+    { command = "updatespellstab", description = "", handler = spellButtonsTabModule.UpdateSpellsTab },
+    { command = "close", description = _t("SlashClose"), handler = BOM.HideWindow },
+    { command = "reset", description = _t("SlashReset"), handler = BOM.ResetWindow },
+    { command = "_checkforerror", description = "",
+      handler = function()
+        if not InCombatLockdown() then
+          BOM.checkForError = true
+        end
+      end },
+    { command = "", description = _t("SlashOpen"), handler = BOM.ShowWindow },
+  }
 end
 
 ---Called from event handler on Addon Loaded event
@@ -457,10 +424,8 @@ function BuffomatAddon:Init()
   languagesModule:SetupTranslations()
   allBuffsModule:SetupSpells()
   allBuffsModule:SetupCancelBuffs()
-  --BOM.SetupItemCache()
-  taskScanModule:SetupTasklist()
 
-  BOM.Macro = BOM.Class.Macro:new(constModule.MACRO_NAME)
+  BOM.theMacro = macroModule:NewMacro(constModule.MACRO_NAME, nil)
 
   languagesModule:LocalizationInit()
 
@@ -479,54 +444,29 @@ function BuffomatAddon:Init()
     end
   end
 
-  BOM.Tool.EnableSize(BomC_MainWindow, 8, nil, function()
+  toolboxModule:EnableSize(BomC_MainWindow, 8, nil, function()
     BOM.SaveWindowPosition()
   end)
 
   -- slash command
   -- Unused?
-  local function slash_command_db_set(DB, var, value)
-    if value == nil then
-      DB[var] = not DB[var]
+  --local function slash_command_db_set(DB, var, value)
+  --  if value == nil then
+  --    DB[var] = not DB[var]
+  --
+  --  elseif tContains({ "true", "1", "enable" }, value) then
+  --    DB[var] = true
+  --
+  --  elseif tContains({ "false", "0", "disable" }, value) then
+  --    DB[var] = false
+  --  end
+  --
+  --  BOM:Print("Set " .. var .. " to " .. tostring(DB[var]))
+  --  buffomatModule:OptionsUpdate()
+  --end
 
-    elseif tContains({ "true", "1", "enable" }, value) then
-      DB[var] = true
-
-    elseif tContains({ "false", "0", "disable" }, value) then
-      DB[var] = false
-    end
-
-    BOM:Print("Set " .. var .. " to " .. tostring(DB[var]))
-    buffomatModule:OptionsUpdate()
-  end
-
-  BOM.Tool.SlashCommand({ "/bom", "/buffomat" }, {
-    { "debug", "", {
-      { "buff", "", BOM.DebugBuffList },
-      { "target", "", BOM.DebugBuffs, "target" },
-    },
-    },
-    { "profile", "", {
-      { "%", _t("SlashProfile"), BOM.ChooseProfile }
-    },
-    },
-    { "spellbook", _t("SlashSpellBook"), BOM.SetupAvailableSpells },
-    { "update", _t("SlashUpdate"),
-      function()
-        buffomatModule:SetForceUpdate("macro-/update")
-        taskScanModule:ScanNow("macro-/update")
-      end },
-    { "updatespellstab", "", spellButtonsTabModule.UpdateSpellsTab },
-    { "close", _t("SlashClose"), BOM.HideWindow },
-    { "reset", _t("SlashReset"), BOM.ResetWindow },
-    { "_checkforerror", "",
-      function()
-        if not InCombatLockdown() then
-          BOM.CheckForError = true
-        end
-      end },
-    { "", _t("SlashOpen"), BOM.ShowWindow },
-  })
+  slashModule:RegisterSlashCommandHandler({ "/bom", "/buffomat" },
+          self:MakeSlashCommand())
 
   buffomatModule:InitUI()
 
@@ -539,8 +479,11 @@ function BuffomatAddon:Init()
   end
 
   buffomatModule:UpdateBuffTabText()
+  buffomatModule:RegisterBindings()
+end
 
-  -- Key Binding section header and key translations (see Bindings.XML)
+-- Key Binding section header and key translations (see Bindings.XML)
+function buffomatModule:RegisterBindings()
   _G["BINDING_HEADER_BUFFOMATHEADER"] = "Buffomat Classic"
   _G["BINDING_NAME_MACRO Buffomat Classic"] = _t("ButtonCastBuff")
   _G["BINDING_NAME_BUFFOMAT_WINDOW"] = _t("ButtonBuffomatWindow")
@@ -552,6 +495,7 @@ function BuffomatAddon:OnInitialize()
   -- or setting up slash commands.
   profileModule:Setup()
   buffomatModule:InitGlobalStates()
+  kvEnvModule:DetectVersions()
 end
 
 ---AceAddon handler
@@ -561,15 +505,18 @@ function BuffomatAddon:OnEnable()
   -- the game that wasn't available in OnInitialize
   self:Init()
   eventsModule:InitEvents()
+
+  local onClick = function(control, button)
+    if button == "LeftButton" then
+      buffomatModule:ToggleWindow()
+    else
+      optionsPopupModule:Setup(control, true)
+    end
+  end
+
   toolboxModule:AddDataBroker(
           constModule.BOM_BEAR_ICON_FULLPATH,
-          function(self, button)
-            if button == "LeftButton" then
-              buffomatModule:ToggleWindow()
-            else
-              optionsPopupModule:Setup(self, true)
-            end
-          end)
+          onClick, nil, nil)
   buffomatModule:UseProfile(profileModule:SoloProfile())
 end
 
@@ -578,23 +525,23 @@ function BuffomatAddon:OnDisable()
 end
 
 function buffomatModule:DownGrade()
-  if BOM.CastFailedSpell
-          and BOM.CastFailedSpell.SkipList
-          and BOM.CastFailedSpellTarget then
-    local level = UnitLevel(BOM.CastFailedSpellTarget.unitId)
+  if BOM.castFailedBuff
+          and (--[[---@not nil]] BOM.castFailedBuff).skipList
+          and BOM.castFailedBuffTarget then
+    local level = UnitLevel((--[[---@not nil]] BOM.castFailedBuffTarget).unitId)
 
     if level ~= nil and level > -1 then
-      if buffomatModule.shared.SpellGreaterEqualThan[BOM.CastFailedSpellId] == nil
-              or buffomatModule.shared.SpellGreaterEqualThan[BOM.CastFailedSpellId] < level
+      if self.shared.SpellGreaterEqualThan[BOM.castFailedSpellId] == nil
+              or self.shared.SpellGreaterEqualThan[BOM.castFailedSpellId] < level
       then
-        buffomatModule.shared.SpellGreaterEqualThan[BOM.CastFailedSpellId] = level
-        BOM.FastUpdateTimer()
-        buffomatModule:SetForceUpdate("Downgrade")
-        BOM:Print(string.format(_t("MsgDownGrade"),
-                BOM.CastFailedSpell.singleText,
-                BOM.CastFailedSpellTarget.name))
+        self.shared.SpellGreaterEqualThan[BOM.castFailedSpellId] = level
+        self:FastUpdateTimer()
+        self:RequestTaskRescan("Downgrade")
+        self:P(string.format(_t("MsgDownGrade"),
+                (--[[---@not nil]] BOM.castFailedBuff).singleText,
+                ((--[[---@not nil]] BOM.castFailedBuffTarget).name)))
 
-      elseif buffomatModule.shared.SpellGreaterEqualThan[BOM.CastFailedSpellId] >= level then
+      elseif buffomatModule.shared.SpellGreaterEqualThan[BOM.castFailedSpellId] >= level then
         BOM.AddMemberToSkipList()
       end
     else
@@ -623,15 +570,17 @@ buffomatModule.lastSpellsTabUpdate = 0
 
 ---This runs every frame, do not do any excessive work here
 function buffomatModule.UpdateTimer(elapsed)
-  --if elapsed > 0.1 then BOM:Print("Elapsed: " .. elapsed) end
+  if InCombatLockdown() then
+    return
+  end
 
   local now = GetTime()
 
-  if BOM.InLoading and BOM.LoadingScreenTimeOut then
-    if BOM.LoadingScreenTimeOut > now then
+  if BOM.inLoadingScreen and BOM.loadingScreenTimeOut then
+    if BOM.loadingScreenTimeOut > now then
       return
     else
-      BOM.InLoading = false
+      BOM.inLoadingScreen = false
       eventsModule:OnCombatStop()
     end
   end
@@ -644,20 +593,20 @@ function buffomatModule.UpdateTimer(elapsed)
   end
 
   if BOM.nextCooldownDue and BOM.nextCooldownDue <= now then
-    buffomatModule:SetForceUpdate("cdDue")
+    buffomatModule:RequestTaskRescan("cdDue")
   end
 
   if BOM.checkCooldown then
     local cdtest = GetSpellCooldown(BOM.checkCooldown)
     if cdtest == 0 then
       BOM.checkCooldown = nil
-      buffomatModule:SetForceUpdate("checkCd")
+      buffomatModule:RequestTaskRescan("checkCd")
     end
   end
 
-  if BOM.ScanModifier and buffomatModule.lastModifierKeyState ~= IsModifierKeyDown() then
+  if BOM.scanModifierKeyDown and buffomatModule.lastModifierKeyState ~= IsModifierKeyDown() then
     buffomatModule.lastModifierKeyState = IsModifierKeyDown()
-    buffomatModule:SetForceUpdate("ModifierKeyDown")
+    buffomatModule:RequestTaskRescan("ModifierKeyDown")
   end
 
   --
@@ -671,9 +620,9 @@ function buffomatModule.UpdateTimer(elapsed)
     updateTimerLimit = buffomatModule.slowerhardwareUpdateTimerLimit
   end
 
-  local needForceUpdate = next(buffomatModule.forceUpdateRequestedBy) ~= nil
+  local needForceUpdate = next(buffomatModule.taskRescanRequestedBy) ~= nil
 
-  if (needForceUpdate or BOM.RepeatUpdate)
+  if (needForceUpdate or BOM.repeatUpdate)
           and now - (buffomatModule.lastUpdateTimestamp or 0) > updateTimerLimit
           and InCombatLockdown() == false
   then
@@ -682,13 +631,13 @@ function buffomatModule.UpdateTimer(elapsed)
 
     -- Debug: Print the callers as reasons to force update
     -- buffomatModule:PrintCallers("Update: ", buffomatModule.forceUpdateRequestedBy)
-    buffomatModule:ClearForceUpdate()
-    taskScanModule:ScanNow("timer")
+    buffomatModule:ClearForceUpdate(nil)
+    taskScanModule:ScanTasks("timer")
 
     -- If updatescan call above took longer than 32 ms, and repeated update, then
     -- bump the slow alarm counter, once it reaches 32 we consider throttling.
     -- 1000 ms / 32 ms = 31.25 fps
-    if (debugprofilestop() - buffomatModule.fpsCheck) > 32 and BOM.RepeatUpdate then
+    if (debugprofilestop() - buffomatModule.fpsCheck) > 32 and BOM.repeatUpdate then
       buffomatModule.slowCount = buffomatModule.slowCount + 1
 
       if buffomatModule.slowCount >= 20 and updateTimerLimit < 1 then
@@ -702,13 +651,13 @@ function buffomatModule.UpdateTimer(elapsed)
   end
 end
 
-function BOM.FastUpdateTimer()
+function buffomatModule:FastUpdateTimer()
   buffomatModule.lastUpdateTimestamp = 0
 end
 
-BOM.PlayerBuffs = {}
+partyModule.unitAurasLastUpdated = --[[---@type BomBuffUpdatesPerUnit]] {}
 
----@class BomUnitAuraResult
+---@shape BomUnitAuraResult
 ---@field name string The name of the spell or effect of the debuff. This is the name shown in yellow when you mouse over the icon
 ---@field icon string The path to the icon file
 ---@field count number The number of times the debuff has been applied to the target. Returns 0 for any debuff which doesn't stack.
@@ -739,65 +688,6 @@ function buffomatModule:PrintCallers(prefix, callersCollection)
   end
 end
 
----Handles UnitAura WOW API call.
----For spells that are tracked by Buffomat the data is also stored in BOM.PlayerBuffs
----@param unitId string
----@param buffIndex number Index of buff/debuff slot starts 1 max 40?
----@param filter string Filter string like "HELPFUL", "PLAYER", "RAID"... etc
----@return BomUnitAuraResult
-function buffomatModule:UnitAura(unitId, buffIndex, filter)
-  local name, icon, count, debuffType, duration, expirationTime, source, isStealable
-  , nameplateShowPersonal, spellId, canApplyAura, isBossDebuff, castByPlayer
-  , nameplateShowAll, timeMod = UnitAura(unitId, buffIndex, filter)
-
-  if spellId and BOM.AllSpellIds and tContains(BOM.AllSpellIds, spellId) then
-
-    if source ~= nil and source ~= "" and UnitIsUnit(source, "player") then
-      if UnitIsUnit(unitId, "player") and duration ~= nil and duration > 0 then
-        self.shared.Duration[name] = duration
-      end
-
-      if duration == nil or duration == 0 then
-        duration = self.shared.Duration[name] or 0
-      end
-
-      if duration > 0 and (expirationTime == nil or expirationTime == 0) then
-        local destName = (UnitFullName(unitId))
-
-        if BOM.PlayerBuffs[destName] and BOM.PlayerBuffs[destName][name] then
-          expirationTime = BOM.PlayerBuffs[destName][name] + duration
-
-          if expirationTime <= GetTime() then
-            BOM.PlayerBuffs[destName][name] = GetTime()
-            expirationTime = GetTime() + duration
-          end
-        end
-      end
-
-      if expirationTime == 0 then
-        duration = 0
-      end
-    end
-
-  end
-
-  return { name                  = name,
-           icon                  = icon,
-           count                 = count,
-           debuffType            = debuffType,
-           duration              = duration,
-           expirationTime        = expirationTime,
-           source                = source,
-           isStealable           = isStealable,
-           nameplateShowPersonal = nameplateShowPersonal,
-           spellId               = spellId,
-           canApplyAura          = canApplyAura,
-           isBossDebuff          = isBossDebuff,
-           castByPlayer          = castByPlayer,
-           nameplateShowAll      = nameplateShowAll,
-           timeMod               = timeMod }
-end
-
 buffomatModule.autoHelper = "open"
 
 function BOM.HideWindow()
@@ -805,8 +695,8 @@ function BOM.HideWindow()
     if BOM.WindowVisible() then
       BomC_MainWindow:Hide()
       buffomatModule.autoHelper = "KeepClose"
-      buffomatModule:SetForceUpdate("hideWindow")
-      taskScanModule:ScanNow("hideWindow")
+      buffomatModule:RequestTaskRescan("hideWindow")
+      taskScanModule:ScanTasks("hideWindow")
     end
   end
 end
@@ -838,13 +728,13 @@ function buffomatModule:ToggleWindow()
   if BomC_MainWindow:IsVisible() then
     BOM.HideWindow()
   else
-    buffomatModule:SetForceUpdate("toggleWindow")
-    taskScanModule:ScanNow("toggleWindow")
-    BOM.ShowWindow()
+    buffomatModule:RequestTaskRescan("toggleWindow")
+    taskScanModule:ScanTasks("toggleWindow")
+    BOM.ShowWindow(nil)
   end
 end
 
-function BOM.AutoOpen()
+function buffomatModule:AutoOpen()
   if not InCombatLockdown() and buffomatModule.shared.AutoOpen then
     if not BOM.WindowVisible() and buffomatModule.autoHelper == "open" then
       buffomatModule.autoHelper = "close"
@@ -855,7 +745,7 @@ function BOM.AutoOpen()
   end
 end
 
-function BOM.AutoClose(x)
+function buffomatModule:AutoClose()
   if not InCombatLockdown() and buffomatModule.shared.AutoOpen then
     if BOM.WindowVisible() then
       if buffomatModule.autoHelper == "close" then
@@ -902,9 +792,9 @@ local function perform_whisper_request(name)
   ChatFrame_OpenChat("/w " .. name .. " ")
 end
 
-function BOM.EnterHyperlink(self, link, text)
+function BOM.EnterHyperlink(_control, link)
   --print(link,text)
-  local part = BOM.Tool.Split(link, ":")
+  local part = toolboxModule:Split(link, ":")
   if part[1] == "spell" or part[1] == "unit" or part[1] == "item" then
     GameTooltip_SetDefaultAnchor(BomC_Tooltip, UIParent)
     BomC_Tooltip:SetOwner(UIParent, "ANCHOR_PRESERVE")
@@ -919,7 +809,7 @@ function BOM.LeaveHyperlink(self)
 end
 
 function BOM.ClickHyperlink(self, link)
-  local part = BOM.Tool.Split(link, ":")
+  local part = toolboxModule:Split(link, ":")
   if part[1] == "unit" then
     if IsShiftKeyDown() then
       perform_who_request(part[3])
@@ -930,42 +820,42 @@ function BOM.ClickHyperlink(self, link)
   end
 end
 
-function BOM.DebugBuffs(dest)
-  dest = dest or "player"
+--function buffomatModule.Slash_DebugBuffs(dest)
+--  dest = dest or "player"
+--
+--  print("LastTracking:", buffomatModule.character.lastTrackingIconId, " ")
+--  print("ForceTracking:", BOM.forceTracking, " ")
+--  print("ActivAura:", BOM.activePaladinAura, " ")
+--  print("LastAura:", BOM.currentProfile.LastAura, " ")
+--  print("ActivSeal:", BOM.activePaladinSeal, " ")
+--  print("LastSeal:", BOM.currentProfile.LastSeal, " ")
+--  print("Shapeshift:", GetShapeshiftFormID(), " ")
+--  print("Weaponenchantment:", GetWeaponEnchantInfo())
+--
+--  --local name, icon, count, debuffType, duration, expirationTime, source,
+--  --isStealable, nameplateShowPersonal, spellId, canApplyAura, isBossDebuff,
+--  --castByPlayer, nameplateShowAll, timeMod
+--  for buffIndex = 1, 40 do
+--    local unitAura = buffomatModule:UnitAura(dest, buffIndex, "HELPFUL")
+--
+--    if unitAura.name or unitAura.icon or unitAura.count or unitAura.debuffType then
+--      print("Help:", unitAura.name, unitAura.spellId, unitAura.duration,
+--              unitAura.expirationTime, unitAura.source,
+--              (unitAura.expirationTime or 0) - GetTime())
+--    end
+--  end -- for 40 buffs
+--end
 
-  print("LastTracking:", buffomatModule.character.LastTracking, " ")
-  print("ForceTracking:", BOM.ForceTracking, " ")
-  print("ActivAura:", BOM.ActivePaladinAura, " ")
-  print("LastAura:", BOM.CurrentProfile.LastAura, " ")
-  print("ActivSeal:", BOM.ActivePaladinSeal, " ")
-  print("LastSeal:", BOM.CurrentProfile.LastSeal, " ")
-  print("Shapeshift:", GetShapeshiftFormID(), " ")
-  print("Weaponenchantment:", GetWeaponEnchantInfo())
-
-  --local name, icon, count, debuffType, duration, expirationTime, source,
-  --isStealable, nameplateShowPersonal, spellId, canApplyAura, isBossDebuff,
-  --castByPlayer, nameplateShowAll, timeMod
-  for buffIndex = 1, 40 do
-    local unitAura = buffomatModule:UnitAura(dest, buffIndex, "HELPFUL")
-
-    if unitAura.name or unitAura.icon or unitAura.count or unitAura.debuffType then
-      print("Help:", unitAura.name, unitAura.spellId, unitAura.duration,
-              unitAura.expirationTime, unitAura.source,
-              (unitAura.expirationTime or 0) - GetTime())
-    end
-  end -- for 40 buffs
-end
-
-function BOM.DebugBuffList()
-  print("PlayerBuffs stored ", #BOM.PlayerBuffs)
-
-  for name, spellist in pairs(BOM.PlayerBuffs) do
-    print(name)
-
-    for spellname, ti in pairs(spellist) do
-      print(name, spellname, ti, GetTime() - ti)
-    end
-  end
+function buffomatModule.Slash_DebugBuffList()
+--  print("PlayerBuffs stored ", #partyModule.unitAurasLastUpdated)
+--
+--  for name, spellist in pairs(partyModule.unitAurasLastUpdated) do
+--    print(name)
+--
+--    for spellname, ti in pairs(spellist) do
+--      print(name, spellname, ti, GetTime() - ti)
+--    end
+--  end
 end
 
 function BOM.ShowSpellSettings()
@@ -976,4 +866,16 @@ end
 
 function BOM.MyButtonOnClick(self)
   buffomatModule:OptionsUpdate()
+end
+
+function buffomatModule:FadeBuffomatWindow()
+  if BomC_ListTab_Button:IsEnabled() then
+    BomC_MainWindow:SetAlpha(1.0)
+  else
+    local fade = self.shared.FadeWhenNothingToDo
+    if type(fade) ~= "number" then
+      fade = 0.65
+    end
+    BomC_MainWindow:SetAlpha(fade) -- fade the window, default 65%
+  end
 end

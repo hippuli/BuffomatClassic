@@ -2,78 +2,71 @@
 --local TOCNAME, _ = ...
 local BOM = BuffomatAddon ---@type BomAddon
 
----@class BomSpellButtonsTabModule
+---@shape BomSpellButtonsTabModule
 ---@field spellTabsCreatedFlag boolean True if spells tab is created and filled
----@field categoryLabels table<string, BomLegacyControl> Collection of category labels indexed per category name
----@field spellTabUpdateRequestedBy table<number, string> Contains the callers who last requested spells tab update, or nothing
-local spellButtonsTabModule = BuffomatModule.New("Ui/SpellButtonsTab") ---@type BomSpellButtonsTabModule
+---@field categoryLabels table<BomBuffCategoryName, BomGPIControl> Collection of category labels indexed per category name
+---@field spellTabUpdateRequestedBy table<string, boolean> Contains the callers who last requested spells tab update, or nothing
+---@field spellSettingsFrames table
+local spellButtonsTabModule = BomModuleManager.spellButtonsTabModule ---@type BomSpellButtonsTabModule
 spellButtonsTabModule.categoryLabels = {}
 spellButtonsTabModule.spellTabUpdateRequestedBy = {}
+spellButtonsTabModule.spellSettingsFrames = {} -- accessible from TaskScan.MaybeResetWatchGroups
 
-local _t = BuffomatModule.Import("Languages") ---@type BomLanguagesModule
-local allBuffsModule = BuffomatModule.Import("AllBuffs") ---@type BomAllBuffsModule
-local buffDefModule = BuffomatModule.Import("BuffDefinition") ---@type BomBuffDefinitionModule
-local buffomatModule = BuffomatModule.Import("Buffomat") ---@type BomBuffomatModule
-local buffRowModule = BuffomatModule.Import("Ui/BuffRow") ---@type BomBuffRowModule
-local managedUiModule = BuffomatModule.New("Ui/MyButton") ---@type BomUiMyButtonModule
-local optionsPopupModule = BuffomatModule.Import("OptionsPopup") ---@type BomOptionsPopupModule
-local profileModule = BuffomatModule.Import("Profile") ---@type BomProfileModule
-local rowBuilderModule = BuffomatModule.Import("RowBuilder") ---@type BomRowBuilderModule
-local toolboxModule = BuffomatModule.Import("Toolbox") ---@type BomToolboxModule
-
-local L = setmetatable(
-        {},
-        {
-          __index = function(_t, k)
-            if BOM.L and BOM.L[k] then
-              return BOM.L[k]
-            else
-              return "[" .. k .. "]"
-            end
-          end
-        })
+local _t = BomModuleManager.languagesModule
+local allBuffsModule = BomModuleManager.allBuffsModule
+local buffDefModule = BomModuleManager.buffDefinitionModule
+local buffRowModule = BomModuleManager.buffRowModule
+local buffomatModule = BomModuleManager.buffomatModule
+local constModule = BomModuleManager.constModule
+local envModule = KvModuleManager.envModule
+local managedUiModule = BomModuleManager.myButtonModule
+local profileModule = BomModuleManager.profileModule
+local rowBuilderModule = BomModuleManager.rowBuilderModule
+local texturesModule = BomModuleManager.texturesModule
+local toolboxModule = BomModuleManager.toolboxModule
 
 local function bomDoBlessingOnClick(self)
-  local saved = self._privat_DB[self._privat_Var]
+  local saved = self.gpiDict[self.gpiVariableName]
 
-  for i, spell in ipairs(BOM.SelectedSpells) do
-    if spell.isBlessing then
+  for i, buffDef in ipairs(allBuffsModule.selectedBuffs) do
+    if buffDef.isBlessing then
       -- TODO: use spell instead of BOM.CurrentProfile.Spell[]
-      buffomatModule.currentProfile.Spell[spell.buffId].Class[self._privat_Var] = false
+      buffomatModule.currentProfile.Spell[buffDef.buffId].Class[self.gpiVariableName] = false
     end
   end
-  self._privat_DB[self._privat_Var] = saved
+  self.gpiDict[self.gpiVariableName] = saved
 
   managedUiModule:UpdateAll()
   buffomatModule:OptionsUpdate()
 end
-
--- accessible from TaskScan.MaybeResetWatchGroups
-spellButtonsTabModule.spellSettingsFrames = {}
 
 ---Add some clickable elements to Spell Tab row with all classes
 ---@param rowBuilder BomRowBuilder The structure used for building button rows
 ---@param playerIsHorde boolean Whether we are the horde
 ---@param spell BomBuffDefinition The spell currently being displayed
 function spellButtonsTabModule:AddSpellRow_ClassSelector(rowBuilder, playerIsHorde, spell, profileSpell)
-  local tooltip1 = BOM.FormatTexture(BOM.ICON_SELF_CAST_ON) .. " - " .. _t("TooltipSelfCastCheckbox_Self") .. "|n"
-          .. BOM.FormatTexture(BOM.ICON_SELF_CAST_OFF) .. " - " .. _t("TooltipSelfCastCheckbox_Party")
+  local tooltip1 = BOM.FormatTexture(texturesModule.ICON_SELF_CAST_ON) .. " - " .. _t("TooltipSelfCastCheckbox_Self") .. "|n"
+          .. BOM.FormatTexture(texturesModule.ICON_SELF_CAST_OFF) .. " - " .. _t("TooltipSelfCastCheckbox_Party")
   local selfcastToggle = spell.frames:CreateSelfCastToggle(tooltip1)
   rowBuilder:ChainToTheRight(nil, selfcastToggle, 5)
-  selfcastToggle:SetVariable(profileSpell, "SelfCast")
+  selfcastToggle:SetVariable(profileSpell, "SelfCast", nil)
 
   --------------------------------------
   -- Class-Cast checkboxes one per class
   --------------------------------------
-  for ci, class in ipairs(BOM.Tool.Classes) do
-    local tooltip2 = BOM.Tool.IconClass[class] .. " - " .. _t("TooltipCastOnClass") .. ": " .. BOM.Tool.ClassName[class] .. "|n"
-            .. BOM.FormatTexture(BOM.ICON_EMPTY) .. " - " .. _t("TabDoNotBuff") .. ": " .. BOM.Tool.ClassName[class] .. "|n"
-            .. BOM.FormatTexture(BOM.ICON_DISABLED) .. " - " .. _t("TabBuffOnlySelf")
+  for _, class in ipairs(constModule.CLASSES) do
+    local tooltip2 = constModule.CLASS_ICONS[class]
+            .. " - " .. _t("TooltipCastOnClass")
+            .. ": " .. constModule.CLASS_NAME[--[[---@type BomClassName]] class] .. "|n"
+            .. BOM.FormatTexture(texturesModule.ICON_EMPTY) .. " - " .. _t("TabDoNotBuff")
+            .. ": " .. constModule.CLASS_NAME[--[[---@type BomClassName]] class] .. "|n"
+            .. BOM.FormatTexture(texturesModule.ICON_DISABLED) .. " - " .. _t("TabBuffOnlySelf")
+
     local classToggle = spell.frames:CreateClassToggle(class, tooltip2, bomDoBlessingOnClick)
-    classToggle:SetVariable(profileSpell.Class, class)
+    classToggle:SetVariable(profileSpell.Class, class, nil)
     rowBuilder:ChainToTheRight(nil, classToggle, 0)
 
-    if not BOM.HaveTBC and (-- if not TBC hide paladin for horde, hide shaman for alliance
+    if not envModule.haveTBC and (-- if not TBC hide paladin for horde, hide shaman for alliance
             (playerIsHorde and class == "PALADIN") or (not playerIsHorde and class == "SHAMAN")) then
       classToggle:Hide()
     else
@@ -82,16 +75,16 @@ function spellButtonsTabModule:AddSpellRow_ClassSelector(rowBuilder, playerIsHor
   end -- for each class in class_sort_order
 
   --========================================
-  local tooltip3 = BOM.FormatTexture(BOM.ICON_TANK) .. " - " .. _t("TooltipCastOnTank")
+  local tooltip3 = BOM.FormatTexture(texturesModule.ICON_TANK) .. " - " .. _t("TooltipCastOnTank")
   local tankToggle = spell.frames:CreateTankToggle(tooltip3, bomDoBlessingOnClick)
-  tankToggle:SetVariable(profileSpell.Class, "tank")
+  tankToggle:SetVariable(profileSpell.Class, "tank", nil)
   rowBuilder:ChainToTheRight(nil, tankToggle, 0)
   rowBuilder.prevControl = tankToggle
 
   --========================================
-  local tooltip4 = BOM.FormatTexture(BOM.ICON_PET) .. " - " .. _t("TooltipCastOnPet")
+  local tooltip4 = BOM.FormatTexture(texturesModule.ICON_PET) .. " - " .. _t("TooltipCastOnPet")
   local petToggle = spell.frames:CreatePetToggle(tooltip4, bomDoBlessingOnClick)
-  petToggle:SetVariable(profileSpell.Class, "pet")
+  petToggle:SetVariable(profileSpell.Class, "pet", nil)
   rowBuilder:ChainToTheRight(nil, petToggle, 5)
 
   -- Force Cast Button -(+)-
@@ -104,34 +97,34 @@ function spellButtonsTabModule:AddSpellRow_ClassSelector(rowBuilder, playerIsHor
 end
 
 ---Add a row with spell cancel buttons
----@param spell BomBuffDefinition - The spell to be canceled
+---@param buffDef BomBuffDefinition - The spell to be canceled
 ---@param rowBuilder BomRowBuilder The structure used for building button rows
----@return {dy, prev_control}
-function spellButtonsTabModule:AddSpellCancelRow(spell, rowBuilder)
-  local infoIcon = spell.frames:CreateInfoIcon(spell)
+function spellButtonsTabModule:AddSpellCancelRow(buffDef, rowBuilder)
+  local infoIcon = buffDef.frames:CreateInfoIcon(buffDef)
   rowBuilder:PositionAtNewRow(infoIcon, 0, 7)
   infoIcon:Show()
 
-  local enableCheckbox = spell.frames:CreateEnableCheckbox(_t("TooltipEnableBuffCancel"))
+  local enableCheckbox = buffDef.frames:CreateEnableCheckbox(_t("TooltipEnableBuffCancel"))
   rowBuilder:ChainToTheRight(infoIcon, enableCheckbox, 7)
-  enableCheckbox:SetVariable(buffomatModule.currentProfile.CancelBuff[spell.buffId], "Enable")
+  enableCheckbox:SetVariable(buffomatModule.currentProfile.CancelBuff[buffDef.buffId], "Enable", nil)
   enableCheckbox:Show()
 
   --Add "Only before combat" text label
-  spell.frames.cancelBuffLabel = toolboxModule:CreateSmalltextLabel(
-          spell.frames.cancelBuffLabel,
-          BomC_SpellTab_Scroll_Child,
-          function(ctrl)
-            if spell.OnlyCombat then
-              ctrl:SetText(_t("HintCancelThisBuff") .. ": " .. _t("HintCancelThisBuff_Combat"))
-            else
-              ctrl:SetText(_t("HintCancelThisBuff") .. ": " .. _t("HintCancelThisBuff_Always"))
-            end
+  local positionFn = function(ctrl)
+    if buffDef.onlyCombat then
+      ctrl:SetText(_t("HintCancelThisBuff") .. ": " .. _t("HintCancelThisBuff_Combat"))
+    else
+      ctrl:SetText(_t("HintCancelThisBuff") .. ": " .. _t("HintCancelThisBuff_Always"))
+    end
 
-            rowBuilder.dy = 3
-            rowBuilder:ChainToTheRight(nil, ctrl)
-          end)
-  spell.frames.cancelBuffLabel:Show()
+    rowBuilder.dy = 3
+    rowBuilder:ChainToTheRight(nil, ctrl, nil)
+  end
+  buffDef.frames.cancelBuffLabel = toolboxModule:CreateSmalltextLabel(
+          buffDef.frames.cancelBuffLabel,
+          BomC_SpellTab_Scroll_Child,
+          positionFn)
+  buffDef.frames.cancelBuffLabel:Show()
 end
 
 ---@param rowBuilder BomRowBuilder The structure used for building button rows
@@ -142,14 +135,14 @@ function spellButtonsTabModule:AddGroupScanSelector(rowBuilder)
   if self.spellSettingsFrames.Settings == nil then
     self.spellSettingsFrames.Settings = managedUiModule:CreateManagedButton(
             BomC_SpellTab_Scroll_Child,
-            BOM.ICON_GEAR,
+            texturesModule.ICON_GEAR,
             nil,
             nil,
-            { 0.1, 0.9, 0.1, 0.9 },
+            texturesModule.ICON_COORD_09,
             nil, nil, "groupScanSelector.icon")
   end
 
-  BOM.Tool.Tooltip(self.spellSettingsFrames.Settings, _t("TooltipRaidGroupsSettings"))
+  toolboxModule:Tooltip(self.spellSettingsFrames.Settings, _t("TooltipRaidGroupsSettings"))
   rowBuilder:PositionAtNewRow(self.spellSettingsFrames.Settings, 0, 7)
   rowBuilder.dx = 7
 
@@ -160,15 +153,15 @@ function spellButtonsTabModule:AddGroupScanSelector(rowBuilder)
     if self.spellSettingsFrames[i] == nil then
       self.spellSettingsFrames[i] = managedUiModule:CreateManagedButton(
               BomC_SpellTab_Scroll_Child,
-              BOM.ICON_GROUP_ITEM,
-              BOM.ICON_GROUP_NONE,
+              texturesModule.ICON_GROUP_ITEM,
+              texturesModule.ICON_GROUP_NONE,
               nil, nil, nil, nil, "groupScanSelector." .. tostring(i))
     end
 
     rowBuilder:ChainToTheRight(nil, self.spellSettingsFrames[i], 2)
     self.spellSettingsFrames[i]:SetVariable(buffomatModule.character.WatchGroup, i)
     self.spellSettingsFrames[i]:SetText(i)
-    BOM.Tool.TooltipText(self.spellSettingsFrames[i], string.format(_t("TooltipGroup"), i))
+    toolboxModule:TooltipText(self.spellSettingsFrames[i], string.format(_t("TooltipGroup"), i))
     self.spellSettingsFrames[i]:Show()
 
     -- Let the MyButton library function handle the data update, and update the tab text too
@@ -180,96 +173,94 @@ function spellButtonsTabModule:AddGroupScanSelector(rowBuilder)
 
   self.spellSettingsFrames.Settings:Show()
 
-  for i, set in ipairs(optionsPopupModule.behaviourSettings) do
-    if self.spellSettingsFrames[set[1]] then
-      self.spellSettingsFrames[set[1]]:Show()
-    end
-    if self.spellSettingsFrames[set[1] .. "txt"] then
-      self.spellSettingsFrames[set[1] .. "txt"]:Show()
-    end
-  end
+  --for i, setting in ipairs(optionsPopupModule.behaviourSettings) do
+  --  if self.spellSettingsFrames[setting.name] then
+  --    self.spellSettingsFrames[setting.name]:Show()
+  --  end
+  --  if self.spellSettingsFrames[setting.name .. "txt"] then
+  --    self.spellSettingsFrames[setting.name .. "txt"]:Show()
+  --  end
+  --end
 end
 
----@param category string
+---TODO: Move this to spelldef
+---@param category BomBuffCategoryName
 ---@return boolean
--- TODO: Move this to spelldef
 function spellButtonsTabModule:CategoryIsHidden(category)
   return buffomatModule.character.BuffCategoriesHidden[category] == true
 end
 
 ---Creates a row
 ---@param playerIsHorde boolean Whether we're the horde
----@param spell BomBuffDefinition Spell we're adding now
+---@param buff BomBuffDefinition Spell we're adding now
 ---@param rowBuilder BomRowBuilder The structure used for building button rows
----@param playerClass string Character class
-function spellButtonsTabModule:AddSpellRow(rowBuilder, playerIsHorde, spell, playerClass)
-  --if self:CategoryIsHidden(spell.category) then
-  --  return -- do not show any controls if spell category is hidden
-  --end
+function spellButtonsTabModule:AddSpellRow(rowBuilder, playerIsHorde, buff)
+  local profileBuff = buffDefModule:GetProfileBuff(buff.buffId, nil)
+  if profileBuff == nil then
+    return
+  end
 
   -- Create buff icon with tooltip
-  local infoIcon = spell.frames:CreateInfoIcon(spell)
+  local infoIcon = buff.frames:CreateInfoIcon(buff)
   rowBuilder:PositionAtNewRow(infoIcon, 0, 7)
 
-  local profileSpell = buffDefModule:GetProfileBuff(spell.buffId)
-
   -- Add a checkbox [x]
-  local enableCheckbox = spell.frames:CreateEnableCheckbox(_t("TooltipEnableSpell"))
-  enableCheckbox:SetVariable(profileSpell, "Enable")
+  local enableCheckbox = buff.frames:CreateEnableCheckbox(_t("TooltipEnableSpell"))
+  enableCheckbox:SetVariable(--[[---@not nil]] profileBuff, "Enable", nil)
   rowBuilder:ChainToTheRight(nil, enableCheckbox, 7)
 
-  if spell:HasClasses() then
+  if buff:HasClasses() then
     -- Create checkboxes one per class
-    self:AddSpellRow_ClassSelector(rowBuilder, playerIsHorde, spell, profileSpell)
+    self:AddSpellRow_ClassSelector(rowBuilder, playerIsHorde, buff, profileBuff)
   end
 
   -- Add checkbox for spells which can be enabled and present at the same time?
   -->>------------------------------
-  if (spell.type == "tracking"
-          or spell.type == "aura"
-          or spell.type == "seal")
-          and spell.needForm == nil then
-    local statusImage = spell.frames:CreateStatusCheckboxImage(spell)
+  if (buff.type == "tracking"
+          or buff.type == "aura"
+          or buff.type == "seal")
+          and buff.requiresForm == nil then
+    local statusImage = buff.frames:CreateStatusCheckboxImage(buff)
     statusImage:SetPoint("TOPLEFT", infoIcon, "TOPRIGHT", rowBuilder.dx, 0)
     rowBuilder:SpaceToTheRight(statusImage, 7)
   end
   --<<------------------------------
 
   ----------------------------------
-  if spell.isInfo and spell.allowWhisper then
-    local whisperToggle = spell.frames:CreateWhisperToggle(_t("TooltipWhisperWhenExpired"))
+  if buff.isInfo and buff.AllowWhisper then
+    local whisperToggle = buff.frames:CreateWhisperToggle(_t("TooltipWhisperWhenExpired"))
     whisperToggle:SetPoint("TOPLEFT", rowBuilder.prevControl, "TOPRIGHT", rowBuilder.dx, 0)
-    whisperToggle:SetVariable(profileSpell, "Whisper")
+    whisperToggle:SetVariable(--[[---@not nil]] profileBuff, "Whisper", nil)
     rowBuilder:SpaceToTheRight(whisperToggle, 2)
   end
 
   ----------------------------------
-  if spell.type == "weapon" then
+  if buff.type == "weapon" then
     -- Add choices for mainhand & offhand
-    local mainhandToggle = spell.frames:CreateMainhandToggle(_t("TooltipMainHand"))
+    local mainhandToggle = buff.frames:CreateMainhandToggle(_t("tooltip.mainhand"))
     mainhandToggle:SetPoint("TOPLEFT", rowBuilder.prevControl, "TOPRIGHT", rowBuilder.dx, 0)
-    mainhandToggle:SetVariable(profileSpell, "MainHandEnable")
+    mainhandToggle:SetVariable(--[[---@not nil]] profileBuff, "MainHandEnable", nil)
     rowBuilder:SpaceToTheRight(mainhandToggle, 2)
 
-    local offhandToggle = spell.frames:CreateOffhandToggle(_t("TooltipOffHand"))
+    local offhandToggle = buff.frames:CreateOffhandToggle(_t("tooltip.offhand"))
     offhandToggle:SetPoint("TOPLEFT", rowBuilder.prevControl, "TOPRIGHT", rowBuilder.dx, 0)
-    offhandToggle:SetVariable(profileSpell, "OffHandEnable")
+    offhandToggle:SetVariable(--[[---@not nil]] profileBuff, "OffHandEnable", nil)
     rowBuilder:SpaceToTheRight(offhandToggle, 2)
   end
 
   -- Calculate label to the right of the spell config buttons,
   -- spell name and extra text label
   -->>---------------------------
-  local buffLabel = spell.frames:CreateBuffLabel("-")
+  local buffLabel = buff.frames:CreateBuffLabel("-")
   buffLabel:SetPoint("TOPLEFT", rowBuilder.prevControl, "TOPRIGHT", 7, -1)
-  managedUiModule:ManageControl(tostring(spell.buffId) .. ".buffLabel", buffLabel)
+  managedUiModule:ManageControl(tostring(buff.buffId) .. ".buffLabel", buffLabel)
 
-  spell:GetSingleText(
+  buff:GetSingleText(
           function(buffLabelText)
-            if spell.type == "weapon" then
-              buffLabelText = buffLabelText .. ": " .. BOM.Color("bbbbee", _t("TooltipIncludesAllRanks"))
-            elseif spell.extraText then
-              buffLabelText = buffLabelText .. ": " .. BOM.Color("bbbbee", spell.extraText)
+            if buff.type == "weapon" then
+              buffLabelText = buffLabelText .. ": " .. buffomatModule:Color("bbbbee", _t("TooltipIncludesAllRanks"))
+            elseif buff.extraText then
+              buffLabelText = buffLabelText .. ": " .. buffomatModule:Color("bbbbee", buff.extraText)
             end
             buffLabel:SetText(buffLabelText)
           end
@@ -286,7 +277,7 @@ function spellButtonsTabModule:AddSpellRow(rowBuilder, playerIsHorde, spell, pla
   --  spell.frames.toggleForceCast:Show()
   --  spell.frames.toggleExclude:Show()
   --
-  --  for ci, class in ipairs(BOM.Tool.Classes) do
+  --  for ci, class in ipairs(constModule.CLASSES) do
   --    if not BOM.IsTBC and -- if not TBC, hide paladin for horde, hide shaman for alliance
   --            ((playerIsHorde and class == "PALADIN") or (not playerIsHorde and class == "SHAMAN")) then
   --      spell.frames[class]:Hide()
@@ -334,23 +325,27 @@ function spellButtonsTabModule:CreateTab(playerIsHorde)
 
   for j, cat in ipairs(allBuffsModule.buffCategories) do
     if not self:CategoryIsHidden(cat) then
-      for i, spell in ipairs(BOM.SelectedSpells) do -- for all spells known by Buffomat and the player
+      for i, spell in ipairs(allBuffsModule.selectedBuffs) do
+        -- for all spells known by Buffomat and the player
         if spell.category ~= cat -- category has changed from the previous row
                 or (type(spell.onlyUsableFor) == "table"
                 and not tContains(spell.onlyUsableFor, selfClass)) then
           -- skip not usable
         else
-          if not rowBuilder.categories[cat] then -- if category header was not yet added
+          if not rowBuilder.categories[cat] then
+            -- if category header was not yet added
             rowBuilder.categories[cat] = true
             self:AddCategoryRow(cat, rowBuilder) -- only add once if ever found one in that category
-          else -- category header was already added
+          else
+            -- category header was already added
             rowBuilder.dy = 2 -- step down 2 px between rows
           end
 
-          self:AddSpellRow(rowBuilder, playerIsHorde, spell, selfClass)
+          self:AddSpellRow(rowBuilder, playerIsHorde, spell)
         end -- if category of the spell == cat
       end -- for selected spells
-    else -- cat is hidden
+    else
+      -- cat is hidden
       -- Label for hidden category might still be visible from the time before
       if self.categoryLabels[cat] then
         self.categoryLabels[cat]:Hide()
@@ -364,7 +359,7 @@ function spellButtonsTabModule:CreateTab(playerIsHorde)
   -- Add spell cancel buttons for all spells in CancelBuffs
   -- (and CustomCancelBuffs which user can add manually in the config file)
   --
-  for i, spell in ipairs(BOM.CancelBuffs) do
+  for i, spell in ipairs(BOM.cancelBuffs) do
     self:AddSpellCancelRow(spell, rowBuilder)
   end
 
@@ -384,7 +379,7 @@ function spellButtonsTabModule:GetTargetsTooltipText(prefix, empty_text, name_ta
       if text ~= "" then
         text = text .. ", "
       end
-      text = text .. BOM.Color("ffffff", name)
+      text = text .. buffomatModule:Color("ffffff", name)
     end
   end
 
@@ -405,10 +400,10 @@ end
 ---@param spell BomBuffDefinition
 function spellButtonsTabModule:UpdateForcecastTooltip(button, spell)
   local tooltip_force_targets = self:ForceTargetsTooltipText(spell)
-  BOM.Tool.TooltipText(
+  toolboxModule:TooltipText(
           button,
           _t("TooltipForceCastOnTarget") .. "|n"
-                  .. string.format(_t("FormatToggleTarget"), BOM.Color("ffffff", BOM.lastTarget))
+                  .. string.format(_t("FormatToggleTarget"), buffomatModule:Color("ffffff", BOM.lastTarget))
                   .. tooltip_force_targets)
 end
 
@@ -422,22 +417,23 @@ end
 ---@param spell BomBuffDefinition
 function spellButtonsTabModule:UpdateExcludeTargetsTooltip(button, spell)
   local tooltip_exclude_targets = self:ExcludeTargetsTooltip(spell)
-  BOM.Tool.TooltipText(
+  toolboxModule:TooltipText(
           button,
           _t("TooltipExcludeTarget") .. "|n"
-                  .. string.format(_t("FormatToggleTarget"), BOM.Color("ffffff", BOM.lastTarget))
+                  .. string.format(_t("FormatToggleTarget"), buffomatModule:Color("ffffff", BOM.lastTarget))
                   .. tooltip_exclude_targets)
 end
 
 function spellButtonsTabModule:CategoryLabel(catId)
   if not catId then
-    return L["Category_none"]
+    return _t("Category_none")
   end
-  return L["Category_" .. catId]
+  return _t("Category_" .. catId)
 end
 
 ---Takes a category id from allBuffsModule constants, and adds a nice text title
 ---with localised category name
+---@param catId BomBuffCategoryName
 ---@param rowBuilder BomRowBuilder
 function spellButtonsTabModule:AddCategoryRow(catId, rowBuilder)
   local label = self.categoryLabels[catId]
@@ -447,91 +443,91 @@ function spellButtonsTabModule:AddCategoryRow(catId, rowBuilder)
   end
 
   label:Show()
-  label:SetText(BOM.Color("aaaaaa", self:CategoryLabel(catId)))
+  label:SetText(buffomatModule:Color("aaaaaa", self:CategoryLabel(catId)))
   managedUiModule:ManageControl(catId .. "categoryTitleLabel", label)
   self.categoryLabels[catId] = label
 
-  rowBuilder:PositionAtNewRow(label, 6)
+  rowBuilder:PositionAtNewRow(label, 6, nil)
   --rowBuilder:ChainToTheRight(buffCatCheckbox, label)
   rowBuilder.dy = 4 -- step down a little
 end
 
----@param spell BomBuffDefinition
-function spellButtonsTabModule:UpdateSelectedSpell(spell)
+---@param buffDef BomBuffDefinition
+function spellButtonsTabModule:UpdateSelectedSpell(buffDef)
   -- temp fix
-  if not spell.frames.checkboxEnable then
+  if not buffDef.frames.checkboxEnable then
     return
   end
 
   -- the pointer to spell in current BOM profile
   ---@type BomBuffDefinition
-  local profileSpell = buffomatModule.currentProfile.Spell[spell.buffId]
-  spell.frames.checkboxEnable:SetVariable(profileSpell, "Enable")
+  local profileSpell = buffomatModule.currentProfile.Spell[buffDef.buffId]
+  buffDef.frames.checkboxEnable:SetVariable(profileSpell, "Enable", nil)
 
-  if spell:HasClasses() then
-    spell.frames.toggleSelfCast:SetVariable(profileSpell, "SelfCast")
+  if buffDef:HasClasses() then
+    buffDef.frames.toggleSelfCast:SetVariable(profileSpell, "SelfCast", nil)
 
-    for ci, class in ipairs(BOM.Tool.Classes) do
-      spell.frames[class]:SetVariable(profileSpell.Class, class)
+    for ci, class in ipairs(constModule.CLASSES) do
+      buffDef.frames[class]:SetVariable(profileSpell.Class, class, nil)
 
       if profileSpell.SelfCast then
-        spell.frames[class]:Disable()
+        buffDef.frames[class]:Disable()
       else
-        spell.frames[class]:Enable()
+        buffDef.frames[class]:Enable()
       end
     end -- for all class names
 
-    spell.frames["tank"]:SetVariable(profileSpell.Class, "tank")
-    spell.frames["pet"]:SetVariable(profileSpell.Class, "pet")
+    buffDef.frames["tank"]:SetVariable(profileSpell.Class, "tank", nil)
+    buffDef.frames["pet"]:SetVariable(profileSpell.Class, "pet", nil)
 
     if profileSpell.SelfCast then
-      spell.frames["tank"]:Disable()
-      spell.frames["pet"]:Disable()
+      buffDef.frames["tank"]:Disable()
+      buffDef.frames["pet"]:Disable()
     else
-      spell.frames["tank"]:Enable()
-      spell.frames["pet"]:Enable()
+      buffDef.frames["tank"]:Enable()
+      buffDef.frames["pet"]:Enable()
     end
 
     --========================================
-    local forceCastButton = spell.frames.toggleForceCast ---@type BomLegacyControl
-    local excludeButton = spell.frames.toggleExclude ---@type BomLegacyControl
+    local forceCastButton = buffDef.frames.toggleForceCast ---@type BomGPIControl
+    local excludeButton = buffDef.frames.toggleExclude ---@type BomGPIControl
 
     if BOM.lastTarget ~= nil then
-      -------------------------
-      forceCastButton:Enable()
-      self:UpdateForcecastTooltip(forceCastButton, profileSpell)
+      ------------------------- forceCastButton:Enable() self:UpdateForcecastTooltip(forceCastButton, profileSpell)
 
       local spellForcedTarget = profileSpell.ForcedTarget
       local lastTarget = BOM.lastTarget
 
       forceCastButton:SetScript("OnClick", function(self)
-        if spellForcedTarget[lastTarget] == nil then
-          BOM:Print(BOM.FormatTexture(BOM.ICON_TARGET_ON) .. " "
-                  .. _t("MessageAddedForced") .. ": " .. lastTarget)
-          spellForcedTarget[lastTarget] = lastTarget
-        else
-          BOM:Print(BOM.FormatTexture(BOM.ICON_TARGET_ON) .. " "
-                  .. _t("MessageClearedForced") .. ": " .. lastTarget)
-          spellForcedTarget[lastTarget] = nil
+        if lastTarget then
+          if not spellForcedTarget[--[[---@not nil]] lastTarget] then
+            BOM:Print(BOM.FormatTexture(texturesModule.ICON_TARGET_ON) .. " "
+                    .. _t("MessageAddedForced") .. ": " .. lastTarget)
+            spellForcedTarget[--[[---@not nil]] lastTarget] = true
+          else
+            BOM:Print(BOM.FormatTexture(texturesModule.ICON_TARGET_ON) .. " "
+                    .. _t("MessageClearedForced") .. ": " .. lastTarget)
+            spellForcedTarget[--[[---@not nil]] lastTarget] = nil
+          end
         end
         spellButtonsTabModule:UpdateForcecastTooltip(self, profileSpell)
       end)
-      -------------------------
-      excludeButton:Enable()
-      self:UpdateExcludeTargetsTooltip(excludeButton, profileSpell)
+      ------------------------- excludeButton:Enable() self:UpdateExcludeTargetsTooltip(excludeButton, profileSpell)
 
-      local spell_exclude = profileSpell.ExcludedTarget
+      local spellExclude = profileSpell.ExcludedTarget
       lastTarget = BOM.lastTarget
 
       excludeButton:SetScript("OnClick", function(control)
-        if spell_exclude[lastTarget] == nil then
-          BOM:Print(BOM.FormatTexture(BOM.ICON_TARGET_EXCLUDE) .. " "
-                  .. _t("MessageAddedExcluded") .. ": " .. lastTarget)
-          spell_exclude[lastTarget] = lastTarget
-        else
-          BOM:Print(BOM.FormatTexture(BOM.ICON_TARGET_EXCLUDE) .. " "
-                  .. _t("MessageClearedExcluded") .. ": " .. lastTarget)
-          spell_exclude[lastTarget] = nil
+        if lastTarget then
+          if not spellExclude[--[[---@not nil]] lastTarget] then
+            BOM:Print(BOM.FormatTexture(texturesModule.ICON_TARGET_EXCLUDE) .. " "
+                    .. _t("MessageAddedExcluded") .. ": " .. lastTarget)
+            spellExclude[--[[---@not nil]] lastTarget] = true
+          else
+            BOM:Print(BOM.FormatTexture(texturesModule.ICON_TARGET_EXCLUDE) .. " "
+                    .. _t("MessageClearedExcluded") .. ": " .. lastTarget)
+            spellExclude[--[[---@not nil]] lastTarget] = nil
+          end
         end
         spellButtonsTabModule:UpdateExcludeTargetsTooltip(control, profileSpell)
       end)
@@ -539,14 +535,14 @@ function spellButtonsTabModule:UpdateSelectedSpell(spell)
     else
       --======================================
       forceCastButton:Disable()
-      BOM.Tool.TooltipText(
+      toolboxModule:TooltipText(
               forceCastButton,
               _t("TooltipForceCastOnTarget") .. "|n" .. _t("TooltipSelectTarget")
                       .. self:ForceTargetsTooltipText(profileSpell))
       --force_cast_button:SetVariable()
-      ---------------------------------
+
       excludeButton:Disable()
-      BOM.Tool.TooltipText(
+      toolboxModule:TooltipText(
               excludeButton,
               _t("TooltipExcludeTarget") .. "|n" .. _t("TooltipSelectTarget")
                       .. self:ExcludeTargetsTooltip(profileSpell))
@@ -554,25 +550,25 @@ function spellButtonsTabModule:UpdateSelectedSpell(spell)
     end
   end -- end if has classes
 
-  if spell.isInfo and spell.allowWhisper then
-    spell.frames.toggleWhisper:SetVariable(profileSpell, "Whisper")
+  if buffDef.isInfo and buffDef.AllowWhisper then
+    buffDef.frames.toggleWhisper:SetVariable(profileSpell, "AllowWhisper", nil)
   end
 
-  if spell.type == "weapon" then
-    spell.frames.toggleMainHand:SetVariable(profileSpell, "MainHandEnable")
-    spell.frames.toggleOffHand:SetVariable(profileSpell, "OffHandEnable")
+  if buffDef.type == "weapon" then
+    buffDef.frames.toggleMainHand:SetVariable(profileSpell, "MainHandEnable", nil)
+    buffDef.frames.toggleOffHand:SetVariable(profileSpell, "OffHandEnable", nil)
   end
 
-  if (spell.type == "tracking"
-          or spell.type == "aura"
-          or spell.type == "seal") and spell.needForm == nil
+  if (buffDef.type == "tracking"
+          or buffDef.type == "aura"
+          or buffDef.type == "seal") and buffDef.requiresForm == nil
   then
-    if (spell.type == "tracking" and buffomatModule.character.LastTracking == spell.trackingIconId) or
-            (spell.type == "aura" and spell.buffId == buffomatModule.currentProfile.LastAura) or
-            (spell.type == "seal" and spell.buffId == buffomatModule.currentProfile.LastSeal) then
-      spell.frames.checkboxSet:SetState(true)
+    if (buffDef.type == "tracking" and buffomatModule.character.lastTrackingIconId == buffDef.trackingIconId) or
+            (buffDef.type == "aura" and buffDef.buffId == buffomatModule.currentProfile.LastAura) or
+            (buffDef.type == "seal" and buffDef.buffId == buffomatModule.currentProfile.LastSeal) then
+      buffDef.frames.checkboxSet:SetState(true)
     else
-      spell.frames.checkboxSet:SetState(false)
+      buffDef.frames.checkboxSet:SetState(false)
     end
   end
 end
@@ -580,22 +576,18 @@ end
 function spellButtonsTabModule:HideAllControls()
   managedUiModule:HideAllManagedButtons()
 
-  for cat, frame in ipairs(self.categoryLabels) do
+  for _cat, frame in pairs(self.categoryLabels) do
     frame:Hide()
     --frame:SetParent(nil)
     frame:ClearAllPoints()
   end
 
-  -- Keep labels hidden
-  --wipe(self.categoryLabels)
-
-  --BomC_SpellTab_Scroll_Child
-  for _i, spell in ipairs(allBuffsModule.allBuffs) do
-    if self:CategoryIsHidden(spell.category) then
-      spell.frames:Destroy()
-      spell.frames = buffRowModule:New(tostring(spell.singleId))
+  for _id, buffDef in pairs(allBuffsModule.allBuffs) do
+    if self:CategoryIsHidden(buffDef.category) then
+      buffDef.frames:Destroy()
+      buffDef.frames = buffRowModule:New(tostring(buffDef.highestRankSingleId))
     else
-      spell.frames:Hide()
+      buffDef.frames:Hide()
     end
   end
 end
@@ -614,7 +606,7 @@ function spellButtonsTabModule:UpdateSpellsTab_Throttled()
   wipe(self.spellTabUpdateRequestedBy)
 
   -- InCombat Protection is checked by the caller (Update***Tab)
-  if BOM.SelectedSpells == nil then
+  if allBuffsModule.selectedBuffs == nil then
     return false
   end
 
@@ -628,7 +620,7 @@ function spellButtonsTabModule:UpdateSpellsTab_Throttled()
 
   local _className, playerClass, _classId = UnitClass("player")
 
-  for i, spell in ipairs(BOM.SelectedSpells) do
+  for i, spell in ipairs(allBuffsModule.selectedBuffs) do
     if self:CategoryIsHidden(spell.category) then
       -- nothing, is hidden
     elseif type(spell.onlyUsableFor) == "table"
@@ -640,8 +632,8 @@ function spellButtonsTabModule:UpdateSpellsTab_Throttled()
     end
   end -- all spells
 
-  for _i, spell in ipairs(BOM.CancelBuffs) do
-    spell.frames.checkboxEnable:SetVariable(buffomatModule.currentProfile.CancelBuff[spell.buffId], "Enable")
+  for _i, spell in ipairs(BOM.cancelBuffs) do
+    spell.frames.checkboxEnable:SetVariable(buffomatModule.currentProfile.CancelBuff[spell.buffId], "Enable", nil)
   end
 
   --Create small SINGLE-BUFF toggle to the right of [Cast <spell>]
@@ -650,6 +642,7 @@ function spellButtonsTabModule:UpdateSpellsTab_Throttled()
 end
 
 ---Record the need to update spells tab, but the actual update is called on a timer
+---@param caller string
 function spellButtonsTabModule:UpdateSpellsTab(caller)
-  table.insert(self.spellTabUpdateRequestedBy, caller)
+  self.spellTabUpdateRequestedBy[caller] = true
 end

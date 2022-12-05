@@ -2,12 +2,10 @@
 local TOCNAME, _ = ...
 local BOM = BuffomatAddon ---@type BomAddon
 
----@class BomSpellIdsModule
-local spellIdsModule = BuffomatModule.New("SpellIds") ---@type BomSpellIdsModule
+---@shape BomSpellIdsModule
+local spellIdsModule = BomModuleManager.spellIdsModule ---@type BomSpellIdsModule
 
-BOM.SpellId = {}
-
-BOM.SpellId.WotlkFood80 = 45548
+spellIdsModule.WotlkFood80 = 45548
 
 spellIdsModule.Mage_ConjureManaSapphire = 42985
 spellIdsModule.Mage_ConjureManaEmerald = 27101
@@ -41,3 +39,5 @@ spellIdsModule.FindHerbs = 2383
 spellIdsModule.FindMinerals = 2580
 spellIdsModule.FindTreasure = 2481
 spellIdsModule.FindFish = 43308
+
+spellIdsModule.Shaman_Flametongue6 = 16342

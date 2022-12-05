@@ -1,17 +1,26 @@
-local TOCNAME, _ = ...
+--local TOCNAME, _ = ...
 local BOM = BuffomatAddon ---@type BomAddon
 
----@class BomProfileModule
----@field ALL_PROFILES table<number, string>
-local profileModule = BuffomatModule.New("Profile") ---@type BomProfileModule
+---@shape BomProfileModule
+---@field ALL_PROFILES BomProfileName[]
+local profileModule = BomModuleManager.profileModule ---@type BomProfileModule
 
-local buffomatModule = BuffomatModule.Import("Buffomat") ---@type BomBuffomatModule
-local _t = BuffomatModule.Import("Languages") ---@type BomLanguagesModule
-local libClassicSpecsModule = BuffomatModule.Import("LibClassicSpecs") ---@type LibClassicSpecsModule
+local buffomatModule = BomModuleManager.buffomatModule
+local _t = BomModuleManager.languagesModule
+local envModule = KvModuleManager.envModule
 
----@class BomProfile Snapshot of current options state as selected by the player
+---A single blessing per unit name is possible
+---@alias BomBlessingState {[string]: BomBuffId}
+
+---@return BomBlessingState
+function profileModule:NewBlessingState()
+  return --[[---@type BomBlessingState]] {}
+end
+
+---@shape BomProfile Snapshot of current options state as selected by the player
 ---Named options: Are addressed by their string name in translations, control names, etc
----@field ArgentumDawn boolean Warn if AD trinket is equipped while in an instance 
+---@field CurrentBlessing BomBlessingState
+---@field ReputationTrinket boolean Warn if AD trinket is equipped while in an instance
 ---@field AutoDismount boolean Dismount if necessary for buff cast 
 ---@field AutoDisTravel boolean Remove travel form if necessary for buff cast 
 ---@field AutoOpen boolean Open buffomat if required 
@@ -38,12 +47,16 @@ local libClassicSpecsModule = BuffomatModule.Import("LibClassicSpecs") ---@type 
 ---@field ShowTBCConsumables boolean Will show TBC consumables in the list
 ---@field UseRank boolean Use ranked spells
 ---@field SlowerHardware boolean Less frequent updates
----
----@field Cache table<number, table> Caches responses from GetItemInfo() and GetSpellInfo()
+---@field CancelBuff BomAllBuffsTable --table<BomBuffId, BomBuffDefinition>
+---@field Spell BomBuffDefinitionDict
+---@field LastSeal number|nil
+---@field LastAura number|nil
+
+---@alias BomBuffDefinitionDict {[BomBuffId]: BomBuffDefinition}
 
 ---@return BomProfile
 function profileModule:New()
-  local profile = {} ---@type BomProfile
+  local profile = --[[---@type BomProfile]] {}
   profile.AutoOpen = true
   profile.AutoStand = true
   profile.BuffTarget = true
@@ -61,7 +74,7 @@ function profileModule:New()
 end
 
 function profileModule:Setup()
-  if BOM.HaveWotLK or GetActiveTalentGroup then
+  if envModule.haveWotLK or GetActiveTalentGroup ~= nil then
     self.ALL_PROFILES = {
       "solo", "solo_spec2",
       "group", "group_spec2",
@@ -74,13 +87,14 @@ function profileModule:Setup()
 end
 
 local function bomGetActiveTalentGroup()
-  if BOM.HaveWotLK then
+  if envModule.haveWotLK then
     return GetActiveTalentGroup()
   else
     return nil
   end
 end
 
+---@return BomProfileName
 function profileModule:SoloProfile()
   local spec = bomGetActiveTalentGroup()
   if spec == 1 or spec == nil then
@@ -90,6 +104,7 @@ function profileModule:SoloProfile()
   end
 end
 
+---@return BomProfileName
 function profileModule:GroupProfile()
   local spec = bomGetActiveTalentGroup()
   if spec == 1 or spec == nil then
@@ -99,6 +114,7 @@ function profileModule:GroupProfile()
   end
 end
 
+---@return BomProfileName
 function profileModule:RaidProfile()
   local spec = bomGetActiveTalentGroup()
   if spec == 1 or spec == nil then
@@ -108,6 +124,7 @@ function profileModule:RaidProfile()
   end
 end
 
+---@return BomProfileName
 function profileModule:BattlegroundProfile()
   local spec = bomGetActiveTalentGroup()
   if spec == 1 or spec == nil then
@@ -119,7 +136,7 @@ end
 
 ---Based on profile settings and current PVE or PVP instance choose the mode
 ---of operation
----@return string
+---@return BomProfileName
 function profileModule:ChooseProfile()
   local _inInstance, instanceType = IsInInstance()
   local selectedProfile = self:SoloProfile()
@@ -131,8 +148,8 @@ function profileModule:ChooseProfile()
   end
 
   -- TODO: Refactor isDisabled into a function, also return reason why is disabled
-  if BOM.ForceProfile then
-    selectedProfile = BOM.ForceProfile
+  if BOM.forceProfile then
+    selectedProfile = --[[---@not nil]] BOM.forceProfile
   elseif not buffomatModule.character.UseProfiles then
     selectedProfile = self:SoloProfile()
   elseif instanceType == "pvp" or instanceType == "arena" then

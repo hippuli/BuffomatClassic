@@ -1,25 +1,28 @@
-local TOCNAME, _ = ...
-local BOM = BuffomatAddon ---@type BomAddon
+--local TOCNAME, _ = ...
+--local BOM = BuffomatAddon ---@type BomAddon
 
----@class BomManagedUiModule
-local managedUiModule = BuffomatModule.New("Ui/ManagedUi") ---@type BomManagedUiModule
+---@shape BomManagedUiModule
+---@field ICON_OFF string
+---@field ICON_ON string
+
+local managedUiModule = BomModuleManager.managedUiModule ---@type BomManagedUiModule
 
 managedUiModule.ICON_ON = "|TInterface\\RAIDFRAME\\ReadyCheck-Ready:0:0:0:0:64:64:4:60:4:60|t"
 managedUiModule.ICON_OFF = "|TInterface\\RAIDFRAME\\ReadyCheck-NotReady:0:0:0:0:64:64:4:60:4:60|t"
 
 ---Collection of UI elements which can be hidden together/shown in parts
 ---@class BomManagedUi
----@field uiElements table<string, BomLegacyControl>
----@field parent BomLegacyControl Use this parent to create all controls
-
-local managedUiClass = {} ---@type BomManagedUi
+---@field uiElements table<string, BomGPIControl>
+---@field parent BomGPIControl Use this parent to create all controls
+local managedUiClass = {}
 managedUiClass.__index = managedUiClass
 
 ---@return BomManagedUi
 function managedUiModule:new(parent)
-  local fields = {} ---@type BomManagedUi
+  local fields = --[[---@type BomManagedUi]] {
+    uiElements = {},
+  }
   setmetatable(fields, managedUiClass)
-  fields.uiElements = {}
   return fields
 end
 
@@ -31,11 +34,11 @@ function managedUiClass:NewButton(sel, unsel, selCoord, unselCoord)
   local newButton = CreateFrame("Button", nil, parent, "BomC_MyButtonSecure")
   managedUiModule:SetupButton(newButton, true)
   newButton:SetTextures(sel, unsel, nil, selCoord, unselCoord, nil)
-  tinsert(self.uiElements, newButton)
+  table.insert(self.uiElements, newButton)
   return newButton
 end
 
----@param self BomControl
+---@param self WowControl
 function managedUiModule.ButtonOnEnter(self)
   if self.bomToolTipLink or self.bomToolTipText then
     GameTooltip_SetDefaultAnchor(BomC_Tooltip, UIParent)
@@ -46,7 +49,8 @@ function managedUiModule.ButtonOnEnter(self)
       BomC_Tooltip:SetHyperlink(self.bomToolTipLink)
     else
       local add = ""
-      if self.bomReadVariable then -- add a checkbox to the tooltip
+      if self.bomReadVariable then
+        -- add a checkbox to the tooltip
         add = " " .. (self.bomReadVariable()
                 and managedUiModule.ICON_ON
                 or managedUiModule.ICON_OFF)
@@ -59,12 +63,12 @@ function managedUiModule.ButtonOnEnter(self)
   end
 end
 
----@param self BomControl
+---@param self WowControl
 function managedUiModule.ButtonOnLeave(self)
 
 end
 
----@param button BomLegacyControl
+---@param button BomGPIControl
 function managedUiModule:SetupButton(button, isSecure)
   button:SetScript("OnEnter", managedUiModule.ButtonOnEnter)
   button:SetScript("OnLeave", managedUiModule.ButtonOnLeave)

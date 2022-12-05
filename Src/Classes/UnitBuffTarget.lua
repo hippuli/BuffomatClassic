@@ -1,25 +1,22 @@
-local TOCNAME, _ = ...
-local BOM = BuffomatAddon ---@type BomAddon
+---@shape BomUnitBuffTargetModule
+local buffTargetModule = BomModuleManager.unitBuffTargetModule ---@type BomUnitBuffTargetModule
 
----@class BomUnitBuffTargetModule
-local buffTargetModule = BuffomatModule.New("UnitBuffTarget") ---@type BomUnitBuffTargetModule
-
-local toolboxModule = BuffomatModule.Import("Toolbox") ---@type BomToolboxModule
+local toolboxModule = BomModuleManager.toolboxModule
+local buffomatModule = BomModuleManager.buffomatModule
+local _t = BomModuleManager.languagesModule
 
 ---@class BomUnitBuffTarget
 ---@field unitName string Just the name
 ---@field link string|nil Colored unit name with class icon
-
-local buffTargetClass = {} ---@type BomUnitBuffTarget
+local buffTargetClass = {}
 buffTargetClass.__index = buffTargetClass
 
 ---@return BomUnitBuffTarget
 function buffTargetModule:New(unitName, link)
-  local fields = {} ---@type BomUnitBuffTarget
-  setmetatable(fields, buffTargetClass)
-
+  local fields = --[[---@type BomUnitBuffTarget]] {}
   fields.unitName = unitName
   fields.link = link
+  setmetatable(fields, buffTargetClass)
 
   return fields
 end
@@ -46,7 +43,7 @@ end
 
 function buffTargetClass:GetText()
   if self.unitName == "player" then
-    return BOM.Color("999999", BOM.L["task.target.Self"])
+    return buffomatModule:Color("999999", _t("task.target.Self"))
   end
   return self.link or self.unitName
 end

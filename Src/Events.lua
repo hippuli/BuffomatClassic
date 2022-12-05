@@ -1,16 +1,19 @@
-local TOCNAME, _ = ...
+--local TOCNAME, _ = ...
 local BOM = BuffomatAddon ---@type BomAddon
 
----@class BomEventsModule
-local eventsModule = BuffomatModule.New("Events") ---@type BomEventsModule
+---@shape BomEventsModule
+local eventsModule = BomModuleManager.eventsModule
 
-local profileModule = BuffomatModule.Import("Profile") ---@type BomProfileModule
-local buffomatModule = BuffomatModule.Import("Buffomat") ---@type BomBuffomatModule
-local constModule = BuffomatModule.Import("Const") ---@type BomConstModule
-local allBuffsModule = BuffomatModule.Import("AllBuffs") ---@type BomAllBuffsModule
-local spellButtonsTabModule = BuffomatModule.Import("Ui/SpellButtonsTab") ---@type BomSpellButtonsTabModule
-local spellSetupModule = BuffomatModule.Import("SpellSetup") ---@type BomSpellSetupModule
-local taskScanModule = BuffomatModule.Import("TaskScan") ---@type BomTaskScanModule
+local taskListModule = BomModuleManager.taskListModule
+local allBuffsModule = BomModuleManager.allBuffsModule
+local buffomatModule = BomModuleManager.buffomatModule
+local constModule = BomModuleManager.constModule
+local partyModule = BomModuleManager.partyModule
+local profileModule = BomModuleManager.profileModule
+local spellButtonsTabModule = BomModuleManager.spellButtonsTabModule
+local spellSetupModule = BomModuleManager.spellSetupModule
+local taskScanModule = BomModuleManager.taskScanModule
+local envModule = KvModuleManager.envModule
 
 --"UNIT_POWER_UPDATE","UNIT_SPELLCAST_START","UNIT_SPELLCAST_STOP","PLAYER_STARTED_MOVING","PLAYER_STOPPED_MOVING"
 eventsModule.EVT_COMBAT_STOP = { "PLAYER_REGEN_ENABLED" }
@@ -64,28 +67,28 @@ end
 local function Event_UNIT_POWER_UPDATE(unitTarget, powerType)
   --UNIT_POWER_UPDATE: "unitTarget", "powerType"
   if powerType == "MANA" and UnitIsUnit(unitTarget, "player") then
-    local maxMana = BOM.PlayerManaMax or 0
+    local maxMana = partyModule.playerManaLimit or 0
     local actualMana = UnitPower("player", 0) or 0
 
     if maxMana <= actualMana then
-      buffomatModule:SetForceUpdate("powerUpdate")
+      buffomatModule:RequestTaskRescan("powerUpdate")
     end
   end
 end
 
 local function Event_PLAYER_STARTED_MOVING()
-  BOM.IsMoving = true
+  BOM.isPlayerMoving = true
 end
 
 local function Event_PLAYER_STOPPED_MOVING()
-  BOM.IsMoving = false
+  BOM.isPlayerMoving = false
 end
 
 ---On combat start will close the UI window and disable the UI. Will cancel the cancelable buffs.
 local function Event_CombatStart()
-  buffomatModule:SetForceUpdate("combatStart")
-  BOM.DeclineHasResurrection = true
-  BOM.AutoClose()
+  buffomatModule:RequestTaskRescan("combatStart")
+  BOM.declineHasResurrection = true
+  buffomatModule:AutoClose()
   if not InCombatLockdown() then
     BomC_ListTab_Button:Disable()
   end
@@ -94,9 +97,9 @@ local function Event_CombatStart()
 end
 
 local function Event_CombatStop()
-  BOM.ClearSkip()
-  buffomatModule:SetForceUpdate("combatStop")
-  BOM.DeclineHasResurrection = true
+  taskScanModule:ClearSkip()
+  buffomatModule:RequestTaskRescan("combatStop")
+  BOM.declineHasResurrection = true
   BOM.AllowAutOpen()
 end
 
@@ -105,8 +108,8 @@ function eventsModule:OnCombatStop()
 end
 
 local function Event_LoadingStart()
-  BOM.InLoading = true
-  BOM.LoadingScreenTimeOut = nil
+  BOM.inLoadingScreen = true
+  BOM.loadingScreenTimeOut = nil
   Event_CombatStart()
   --print("loading start")
 end
@@ -119,8 +122,8 @@ local function Event_LoadingStop()
     allBuffsModule:LoadItemsAndSpells()
   end
 
-  BOM.LoadingScreenTimeOut = GetTime() + constModule.LOADING_SCREEN_TIMEOUT
-  buffomatModule:SetForceUpdate("loadingStop")
+  BOM.loadingScreenTimeOut = GetTime() + constModule.LOADING_SCREEN_TIMEOUT
+  buffomatModule:RequestTaskRescan("loadingStop")
 end
 
 ---Event_PLAYER_TARGET_CHANGED
@@ -128,7 +131,7 @@ end
 local function Event_PLAYER_TARGET_CHANGED()
   if not InCombatLockdown() then
     if UnitInParty("target") or UnitInRaid("target") or UnitIsUnit("target", "player") then
-      BOM.lastTarget = (UnitFullName("target"))
+      BOM.lastTarget = UnitFullName("target")
       spellButtonsTabModule:UpdateSpellsTab("PL_TAR_CHANGED1")
 
     elseif BOM.lastTarget then
@@ -155,51 +158,47 @@ local function Event_PLAYER_TARGET_CHANGED()
 
   if newName ~= BOM.SaveTargetName then
     BOM.SaveTargetName = newName
-    buffomatModule:SetForceUpdate("targetChanged")
-    taskScanModule:ScanNow("PlayerTargetChanged")
+    buffomatModule:RequestTaskRescan("targetChanged")
+    taskScanModule:ScanTasks("PlayerTargetChanged")
   end
 end
 
-local partyCheckMask = COMBATLOG_OBJECT_AFFILIATION_RAID + COMBATLOG_OBJECT_AFFILIATION_PARTY + COMBATLOG_OBJECT_AFFILIATION_MINE
---  BOM.PlayerBuffs cleanup in scan bom_get_party_members
+local partyCheckMask = COMBATLOG_OBJECT_AFFILIATION_RAID
+        + COMBATLOG_OBJECT_AFFILIATION_PARTY
+        + COMBATLOG_OBJECT_AFFILIATION_MINE
+--  partyModule.buffs cleanup in scan bom_get_party_members
 
 local function Event_COMBAT_LOG_EVENT_UNFILTERED()
-  local timestamp, event, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags,
-  spellId, spellName, spellSchool, auraType, amount = CombatLogGetCurrentEventInfo()
+  ---@type number, any, boolean, string, string, any, any, string, string, any, any, number, string, number, number, number
+  local timestamp, event, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags
+  , destGUID, unitName, destFlags, destRaidFlags, spellId, spellName, spellSchool
+  , auraType, amount = CombatLogGetCurrentEventInfo()
 
-  if bit.band(destFlags, partyCheckMask) > 0 and destName ~= nil and destName ~= "" then
+  if bit.band(destFlags, partyCheckMask) > 0 and unitName ~= nil and unitName ~= "" then
     --print(event,spellName,bit.band(destFlags,partyCheckMask)>0,bit.band(sourceFlags,COMBATLOG_OBJECT_AFFILIATION_MINE)>0)
     if event == "UNIT_DIED" then
-      --BOM.PlayerBuffs[destName]=nil -- problem with hunters and fake-deaths!
+      --partyModule.buffs[destName]=nil -- problem with hunters and fake-deaths!
       --additional check in bom_get_party_members
       --print("dead",destName)
-      buffomatModule:SetForceUpdate("unitDied")
+      buffomatModule:RequestTaskRescan("unitDied")
 
-    elseif buffomatModule.shared.Duration[spellName] then
-      if bit.band(sourceFlags, COMBATLOG_OBJECT_AFFILIATION_MINE) > 0 then
-        if event == "SPELL_CAST_SUCCESS" then
+    elseif allBuffsModule.selectedBuffsSpellIds
+            and allBuffsModule.selectedBuffsSpellIds[spellId] ~= nil then
+      -- a known buff
+      --if bit.band(sourceFlags, COMBATLOG_OBJECT_AFFILIATION_MINE) > 0 then
+      if event == "SPELL_CAST_SUCCESS" then
+        -- nothing
 
-        elseif event == "SPELL_AURA_REFRESH" then
-          BOM.PlayerBuffs[destName] = BOM.PlayerBuffs[destName] or {}
-          BOM.PlayerBuffs[destName][spellName] = GetTime()
+      elseif event == "SPELL_AURA_REFRESH" then
+        partyModule:OnBuffsChangedEvent(unitName, spellId, "refreshed")
 
-        elseif event == "SPELL_AURA_APPLIED" then
-          BOM.PlayerBuffs[destName] = BOM.PlayerBuffs[destName] or {}
-          if BOM.PlayerBuffs[destName][spellName] == nil then
-            BOM.PlayerBuffs[destName][spellName] = GetTime()
-          end
+      elseif event == "SPELL_AURA_APPLIED" then
+        partyModule:OnBuffsChangedEvent(unitName, spellId, "applied")
 
-        elseif event == "SPELL_AURA_REMOVED" then
-          if BOM.PlayerBuffs[destName] and BOM.PlayerBuffs[destName][spellName] then
-            BOM.PlayerBuffs[destName][spellName] = nil
-          end
-        end
-
-      elseif event == "SPELL_AURA_REFRESH" or event == "SPELL_AURA_APPLIED" and event == "SPELL_AURA_REMOVED" then
-        if BOM.PlayerBuffs[destName] and BOM.PlayerBuffs[destName][spellName] then
-          BOM.PlayerBuffs[destName][spellName] = nil
-        end
+      elseif event == "SPELL_AURA_REMOVED" then
+        partyModule:OnBuffsChangedEvent(unitName, spellId, "removed")
       end
+      --end
     end
   end
 end
@@ -218,7 +217,7 @@ local function Event_UI_ERROR_MESSAGE(errorType, message)
 
   elseif tContains(eventsModule.ERR_IS_MOUNTED, message) then
     local flying = false -- prevent dismount in flight, OUCH!
-    if BOM.IsTBC then
+    if envModule.haveTBC then
       flying = IsFlying() and not buffomatModule.shared.AutoDismountFlying
     end
     if not flying then
@@ -234,7 +233,7 @@ local function Event_UI_ERROR_MESSAGE(errorType, message)
     UIErrorsFrame:Clear()
 
   elseif not InCombatLockdown() then
-    if BOM.CheckForError then
+    if BOM.checkForError then
       if message == SPELL_FAILED_LOWLEVEL then
         buffomatModule:DownGrade()
       else
@@ -243,7 +242,7 @@ local function Event_UI_ERROR_MESSAGE(errorType, message)
     end
   end
 
-  BOM.CheckForError = false
+  BOM.checkForError = false
 end
 
 -----PLAYER_LEVEL_UP Event
@@ -255,8 +254,10 @@ end
 eventsModule.isPlayerInParty = IsInRaid() or IsInGroup()
 
 local function Event_PartyChanged()
-  BOM.PartyUpdateNeeded = true
-  buffomatModule:SetForceUpdate("partyChanged")
+  partyModule:InvalidatePartyCache()
+  partyModule.theParty = nil -- Reset saved party
+
+  buffomatModule:RequestTaskRescan("partyChanged")
 
   -- if in_party changed from true to false, clear the watch groups
   local inParty = IsInRaid() or IsInGroup()
@@ -274,63 +275,62 @@ end
 
 local function Event_UNIT_SPELLCAST_errors(unit)
   if UnitIsUnit(unit, "player") then
-    BOM.CheckForError = false
-    buffomatModule:SetForceUpdate("spellcastError")
+    BOM.checkForError = false
+    buffomatModule:RequestTaskRescan("spellcastError")
   end
 end
 
-local function Event_UNIT_SPELLCAST_START(unit)
-  if UnitIsUnit(unit, "player") and not BOM.PlayerCasting then
-    BOM.PlayerCasting = "cast"
-    buffomatModule:SetForceUpdate("castStart")
+function eventsModule:SafeWipeMacro()
+  if not InCombatLockdown() then
+    -- To prevent same macro being recast when player quickly mashes the shortcut key
+    taskListModule:WipeMacro(nil)
   end
 end
 
-local function Event_UNIT_SPELLCAST_STOP(unit)
-  if UnitIsUnit(unit, "player") and BOM.PlayerCasting then
-    BOM.PlayerCasting = nil
-    buffomatModule:SetForceUpdate("castStop")
-    BOM.CheckForError = false
+local function Event_UNIT_SPELLCAST_START(eventType, unit)
+  if UnitIsUnit(unit, "player") then
+    buffomatModule:SetPlayerCasting("cast")
+    eventsModule:SafeWipeMacro() -- not sure if this has any effect
+    buffomatModule:RequestTaskRescan("castStart")
   end
 end
 
-local function Event_UNIT_SPELLCHANNEL_START(unit)
-  if UnitIsUnit(unit, "player") and not BOM.PlayerCasting then
-    BOM.PlayerCasting = "channel"
-    buffomatModule:SetForceUpdate("channelStart")
+local function Event_UNIT_SPELLCAST_STOP(eventType, unit)
+  if UnitIsUnit(unit, "player") then
+    buffomatModule:SetPlayerCasting(nil)
+    buffomatModule:RequestTaskRescan("castStop")
+    BOM.checkForError = false
   end
 end
 
-local function Event_UNIT_SPELLCHANNEL_STOP(unit)
-  if UnitIsUnit(unit, "player") and BOM.PlayerCasting then
-    BOM.PlayerCasting = nil
-    buffomatModule:SetForceUpdate("channelStop")
-    BOM.CheckForError = false
+local function Event_UNIT_SPELLCHANNEL_START(eventType, unit)
+  if UnitIsUnit(unit, "player") then
+    buffomatModule:SetPlayerCasting("channel")
+    eventsModule:SafeWipeMacro() -- not sure if this has any effect
+    buffomatModule:RequestTaskRescan("channelStart")
   end
 end
 
-local function Event_SpellsChanged()
+local function Event_UNIT_SPELLCHANNEL_STOP(eventType, unit)
+  if UnitIsUnit(unit, "player") then
+    buffomatModule:SetPlayerCasting(nil)
+    buffomatModule:RequestTaskRescan("channelStop")
+    BOM.checkForError = false
+  end
+end
+
+function eventsModule.Event_SpellsChanged()
   spellSetupModule:SetupAvailableSpells()
-  buffomatModule:SetForceUpdate("spellsChanged")
+  buffomatModule:RequestTaskRescan("spellsChanged")
   spellButtonsTabModule:UpdateSpellsTab("spellsChanged")
 end
 
--- Global accessor to refresh the spells tab
-BOM.OnSpellsChanged = Event_SpellsChanged
-
---local function Event_ADDON_LOADED(arg1)
---end
-
---local function Event_GenericUpdate()
---  buffomatModule:SetForceUpdate("generic")
---end
-
 local function Event_Bag()
-  buffomatModule:SetForceUpdate("bagUpdate")
-  BOM.WipeCachedItems = true
+  buffomatModule:RequestTaskRescan("bagUpdate")
+  BOM.wipeCachedItems = true
 
-  if BOM.CachedHasItems then
-    wipe(BOM.CachedHasItems)
+  if BOM.cachedPlayerBag then
+    wipe(BOM.cachedPlayerBag)
   end
 end
 
@@ -340,10 +340,10 @@ function eventsModule:InitEvents()
 
   -- Events which might change active state of Buffomat
   BuffomatAddon:RegisterEvent("ZONE_CHANGED", function()
-    buffomatModule:SetForceUpdate("zoneChanged")
+    buffomatModule:RequestTaskRescan("zoneChanged")
   end)
   BuffomatAddon:RegisterEvent("PLAYER_UPDATE_RESTING", function()
-    buffomatModule:SetForceUpdate("restingChanged")
+    buffomatModule:RequestTaskRescan("restingChanged")
   end)
 
   BuffomatAddon:RegisterEvent("TAXIMAP_OPENED", Event_TAXIMAP_OPENED)
@@ -365,7 +365,7 @@ function eventsModule:InitEvents()
   BuffomatAddon:RegisterEvent("UNIT_SPELLCAST_FAILED", Event_UNIT_SPELLCAST_errors)
 
   -- Dualspec talent switch
-  if BOM.HaveWotLK then
+  if envModule.haveWotLK then
     BuffomatAddon:RegisterEvent("ACTIVE_TALENT_GROUP_CHANGED", Event_TALENT_GROUP_CHANGED)
   end
 
@@ -385,7 +385,7 @@ function eventsModule:InitEvents()
   end
 
   for i, event in ipairs(eventsModule.EVT_SPELLBOOK_CHANGED) do
-    BuffomatAddon:RegisterEvent(event, Event_SpellsChanged)
+    BuffomatAddon:RegisterEvent(event, eventsModule.Event_SpellsChanged)
   end
   for i, event in ipairs(eventsModule.EVT_PARTY_CHANGED) do
     BuffomatAddon:RegisterEvent(event, Event_PartyChanged)
@@ -393,7 +393,7 @@ function eventsModule:InitEvents()
   for i, event in ipairs(eventsModule.GENERIC_UPDATE_EVENTS) do
     local e = event .. ""
     BuffomatAddon:RegisterEvent(event, function()
-      buffomatModule:SetForceUpdate(e)
+      buffomatModule:RequestTaskRescan(e)
     end)
   end
   for i, event in ipairs(eventsModule.EVT_BAG_CHANGED) do

@@ -1,26 +1,25 @@
 local TOCNAME, _ = ...
 local BOM = BuffomatAddon ---@type BomAddon
 
----@class BomGroupBuffTargetModule
-local groupBuffTargetModule = BuffomatModule.New("GroupBuffTarget") ---@type BomGroupBuffTargetModule
+---@shape BomGroupBuffTargetModule
+local groupBuffTargetModule = BomModuleManager.groupBuffTargetModule ---@type BomGroupBuffTargetModule
 
-local toolboxModule = BuffomatModule.Import("Toolbox") ---@type BomToolboxModule
-local _t = BuffomatModule.Import("Languages") ---@type BomLanguagesModule
+local toolboxModule = BomModuleManager.toolboxModule
+local _t = BomModuleManager.languagesModule
+local envModule = KvModuleManager.envModule
 
 ---@class BomGroupBuffTarget
 ---@field groupIndex number
 local groupBuffTargetClass = {}
 groupBuffTargetClass.__index = groupBuffTargetClass
 
---BOM.Class.GroupBuffTarget = {} ---@type BomGroupBuffTarget
---BOM.Class.GroupBuffTarget.__index = BOM.Class.GroupBuffTarget
-
 ---@return BomGroupBuffTarget
 function groupBuffTargetModule:New(groupNum)
-  local fields = {} ---@type BomGroupBuffTarget
+  local fields = --[[---@type BomGroupBuffTarget]] {
+    groupIndex = groupNum,
+  }
   setmetatable(fields, groupBuffTargetClass)
 
-  fields.groupIndex = groupNum
   return fields
 end
 
@@ -46,7 +45,7 @@ function groupBuffTargetClass:GetDistanceRaid()
 end
 
 function groupBuffTargetClass:GetDistanceParty()
-  if BOM.HaveWotLK then
+  if envModule.haveWotLK then
     -- in WotLK group buffs are cast on the whole group
     return 0 -- self always in range
   end

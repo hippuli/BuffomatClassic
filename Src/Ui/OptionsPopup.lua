@@ -1,163 +1,168 @@
 local TOCNAME, _ = ...
 local BOM = BuffomatAddon ---@type BomAddon
 
----@class BomOptionsPopupModule
--- -@field behaviourSettings table<number, table> A list of {Key name, Default} for 'Profile' settings
-local optionsPopupModule = BuffomatModule.New("OptionsPopup") ---@type BomOptionsPopupModule
+---@shape BomBehaviourSetting
+---@field name string
+---@field value boolean
 
-local _t = BuffomatModule.Import("Languages") ---@type BomLanguagesModule
-local buffomatModule = BuffomatModule.Import("Buffomat") ---@type BomBuffomatModule
-local constModule = BuffomatModule.Import("Const") ---@type BomConstModule
-local buffDefModule = BuffomatModule.Import("BuffDefinition") ---@type BomBuffDefinitionModule
-local profileModule = BuffomatModule.Import("Profile") ---@type BomProfileModule
+---@shape BomOptionsPopupModule
+-- -@field behaviourSettings BomBehaviourSetting[]
+local optionsPopupModule = BomModuleManager.optionsPopupModule ---@type BomOptionsPopupModule
 
----@deprecated See options.lua, and defaults in sharedState.lua and characterState.lua
-optionsPopupModule.behaviourSettings = {
-  { "AutoOpen", true },
-  { "ScanInRestArea", false },
-  { "ScanInStealth", false },
-  { "ScanWhileMounted", true },
-  { "InWorld", true },
-  { "InPVP", true },
-  { "InInstance", true },
-  { "PreventPVPTag", true },
+local _t = BomModuleManager.languagesModule
+local buffomatModule = BomModuleManager.buffomatModule
+local constModule = BomModuleManager.constModule
+local buffDefModule = BomModuleManager.buffDefinitionModule
+local profileModule = BomModuleManager.profileModule
+local popupModule = BomModuleManager.popupModule
+local allBuffsModule = BomModuleManager.allBuffsModule
 
-  { "DeathBlock", true },
-  { "NoGroupBuff", false },
-  { "SameZone", false },
-  { "ResGhost", false },
-  { "ReplaceSingle", true },
-  { "ArgentumDawn", false },
-  { "Carrot", false },
-  { "MainHand", false },
-  { "SecondaryHand", false },
-  { "UseRank", true },
-  { "AutoCrusaderAura", true },
-  { "AutoDismount", true },
-  { "AutoDismountFlying", false },
-  { "AutoStand", true },
-  { "AutoDisTravel", true },
-  { "BuffTarget", false },
-  { "OpenLootable", true },
-  { "SelfFirst", false },
-  { "DontUseConsumables", false },
-  { "SlowerHardware", false },
-  { "SomeoneIsDrinking", false },
-}
-
-local L = setmetatable(
-        {},
-        {
-          __index = function(_t, k)
-            if BOM.L and BOM.L[k] then
-              return BOM.L[k]
-            else
-              return "[" .. k .. "]"
-            end
-          end
-        })
+-----@deprecated See options.lua, and defaults in sharedState.lua and characterState.lua
+--optionsPopupModule.behaviourSettings = --[[---@type BomBehaviourSetting[] ]] {
+--  { name = "AutoOpen", value = true },
+--  { name = "ScanInRestArea", value = false },
+--  { name = "ScanInStealth", value = false },
+--  { name = "ScanWhileMounted", value = true },
+--  { name = "InWorld", value = true },
+--  { name = "InPVP", value = true },
+--  { name = "InInstance", value = true },
+--  { name = "PreventPVPTag", value = true },
+--
+--  { name = "DeathBlock", value = true },
+--  { name = "NoGroupBuff", value = false },
+--  { name = "SameZone", value = false },
+--  { name = "ResGhost", value = false },
+--  { name = "ReplaceSingle", value = true },
+--  { name = "ReputationTrinket", value = false },
+--  { name = "Carrot", value = false },
+--  { name = "MainHand", value = false },
+--  { name = "SecondaryHand", value = false },
+--  { name = "UseRank", value = true },
+--  { name = "AutoCrusaderAura", value = true },
+--  { name = "AutoDismount", value = true },
+--  { name = "AutoDismountFlying", value = false },
+--  { name = "AutoStand", value = true },
+--  { name = "AutoDisTravel", value = true },
+--  { name = "BuffTarget", value = false },
+--  { name = "OpenLootable", value = true },
+--  { name = "SelfFirst", value = false },
+--  { name = "DontUseConsumables", value = false },
+--  { name = "SlowerHardware", value = false },
+--  { name = "SomeoneIsDrinking", value = false },
+--}
 
 ---Makes a tuple to pass to the menubuilder to display a settings checkbox in popup menu
 ---@param db table - BuffomatShared reference to read settings from it
 ---@param var string Variable name from optionsPopupModule.BehaviourSettings
 function optionsPopupModule:MakeSettingsRow(db, var)
-  return L["options.short." .. var], false, db, var
+  return _t("options.short." .. var), false, db, var
 end
 
-local function bomOpenOptions()
+function optionsPopupModule.OpenOptions()
   LibStub("AceConfigDialog-3.0"):Open(constModule.SHORT_TITLE)
 end
 
----Populate the [⚙] popup menu: Submenu "Quick Options"
----@deprecated
-function optionsPopupModule:PopupQuickOptions()
-  BOM.PopupDynamic:SubMenu(L["popup.QuickSettings"], "subSettings")
-
-  for i, set in ipairs(self.behaviourSettings) do
-    BOM.PopupDynamic:AddItem(self:MakeSettingsRow(buffomatModule.shared, set[1]))
-  end
-
-  -- -------------------------------------------
-  -- Watch in Raid group -> 1 2 3 4 5 6 7 8
-  -- -------------------------------------------
-  BOM.PopupDynamic:AddItem()
-  BOM.PopupDynamic:SubMenu(L["HeaderWatchGroup"], "subGroup")
-
-  for i = 1, 8 do
-    BOM.PopupDynamic:AddItem(i, "keep", buffomatModule.character.WatchGroup, i)
-  end
-
-  BOM.PopupDynamic:SubMenu()
-end
+-----Populate the [⚙] popup menu: Submenu "Quick Options"
+-----@deprecated
+--function optionsPopupModule:PopupQuickOptions()
+--  BOM.popupMenuDynamic:SubMenu(_t("popup.QuickSettings"), "subSettings")
+--
+--  for i, setting in ipairs(self.behaviourSettings) do
+--    BOM.popupMenuDynamic:AddItem(self:MakeSettingsRow(buffomatModule.shared, setting.name), nil, nil, nil, nil)
+--  end
+--
+--  -- -------------------------------------------
+--  -- Watch in Raid group -> 1 2 3 4 5 6 7 8
+--  -- -------------------------------------------
+--  BOM.popupMenuDynamic:AddItem(nil, nil, nil, nil, nil)
+--  BOM.popupMenuDynamic:SubMenu(_t("HeaderWatchGroup"), "subGroup", nil)
+--
+--  for i = 1, 8 do
+--    BOM.popupMenuDynamic:AddItem(i, "keep", buffomatModule.character.WatchGroup, i, nil)
+--  end
+--
+--  BOM.popupMenuDynamic:SubMenu(nil, nil)
+--end
 
 ---Populate the [⚙] popup menu
+---@param minimap boolean
 function optionsPopupModule:Setup(control, minimap)
   local name = (control:GetName() or "nil") .. (minimap and "Minimap" or "Normal")
+  local dyn = BOM.popupMenuDynamic
+  local menuItems = --[[---@type BomMenuItemDef[] ]] {}
 
-  if not BOM.PopupDynamic:Wipe(name) then
+  if not dyn:Wipe(name) then
     return
   end
 
   if minimap then
-    BOM.PopupDynamic:AddItem(L.BtnOpen, false, BOM.ShowWindow)
-    BOM.PopupDynamic:AddItem()
-    BOM.PopupDynamic:AddItem(_t("options.short.ShowMinimapButton"), false,
-            buffomatModule.shared.Minimap, "visible")
-    BOM.PopupDynamic:AddItem(_t("options.short.LockMinimapButton"), false,
-            buffomatModule.shared.Minimap, "lock")
-    BOM.PopupDynamic:AddItem(_t("options.short.LockMinimapButtonDistance"), false,
-            buffomatModule.shared.Minimap, "lockDistance")
-    BOM.PopupDynamic:AddItem()
+    table.insert(menuItems, popupModule:Clickable(_t("popup.OpenBuffomat"), BOM.ShowWindow, nil, nil))
+    table.insert(menuItems, popupModule:Separator())
+    table.insert(menuItems, popupModule:Boolean(_t("options.short.ShowMinimapButton"),
+            buffomatModule.shared.Minimap, "visible"))
+    table.insert(menuItems, popupModule:Boolean(_t("options.short.LockMinimapButton"),
+            buffomatModule.shared.Minimap, "lock"))
+    table.insert(menuItems, popupModule:Boolean(_t("options.short.LockMinimapButtonDistance"),
+            buffomatModule.shared.Minimap, "lockDistance"))
+    table.insert(menuItems, popupModule:Separator())
   end
 
   -- --------------------------------------------
   -- Use Profiles checkbox and submenu
   -- --------------------------------------------
-  BOM.PopupDynamic:AddItem(L["options.short.UseProfiles"], false,
-          buffomatModule.character, "UseProfiles")
+  table.insert(menuItems, popupModule:Boolean(_t("options.short.UseProfiles"),
+          buffomatModule.character, "UseProfiles"))
 
   if buffomatModule.character.UseProfiles then
-    BOM.PopupDynamic:SubMenu(L["HeaderProfiles"], "subProfiles")
-    BOM.PopupDynamic:AddItem(L["profile_auto"], false,
-            buffomatModule.ChooseProfile, "auto")
+    local subprofilesMenu = --[[---@type BomMenuItemDef[] ]] {}
+    table.insert(subprofilesMenu, popupModule:Clickable(_t("profile_auto"),
+            buffomatModule.ChooseProfile, "auto", nil))
 
     local currentProfileName = profileModule:ChooseProfile()
+
     for _i, eachProfileName in pairs(profileModule.ALL_PROFILES) do
       if currentProfileName == eachProfileName then
         local activeName = _t("profile.activeProfileMenuTag") .. " " .. _t("profile_" .. eachProfileName)
-        BOM.PopupDynamic:AddItem(BOM.Color("00ff00", activeName),
-                false, buffomatModule.ChooseProfile, eachProfileName)
+        table.insert(subprofilesMenu, popupModule:Clickable(buffomatModule:Color("00ff00", activeName),
+                buffomatModule.ChooseProfile, eachProfileName, nil))
       else
-        BOM.PopupDynamic:AddItem(_t("profile_" .. eachProfileName),
-                false, buffomatModule.ChooseProfile, eachProfileName)
+        table.insert(subprofilesMenu, popupModule:Clickable(_t("profile_" .. eachProfileName),
+                buffomatModule.ChooseProfile, eachProfileName, nil))
       end
     end
 
-    BOM.PopupDynamic:SubMenu()
+    table.insert(menuItems, popupModule:SubMenu(_t("header.Profiles"), 1, subprofilesMenu))
   end
 
-  BOM.PopupDynamic:AddItem()
+  table.insert(menuItems, popupModule:Separator())
+
 
   -- --------------------------------------------
   -- Selected spells check on/off
   -- --------------------------------------------
-  for i, spell in ipairs(BOM.SelectedSpells) do
-    if not spell.isConsumable then
-      BOM.PopupDynamic:AddItem(spell.singleLink or spell.singleText,
-              "keep",
-              buffDefModule:GetProfileBuff(spell.buffId),
-              "Enable")
+  if true then
+    for i, buffDef in ipairs(allBuffsModule.selectedBuffs) do
+      if not buffDef.isConsumable then
+        table.insert(menuItems, popupModule:Boolean(
+                buffDef.singleLink or buffDef.singleText,
+                buffDefModule:GetProfileBuff(buffDef.buffId, nil),
+                "Enable"))
+      end
     end
   end
 
-  local inBuffGroup -- unused? nil?
-  if inBuffGroup then
-    BOM.PopupDynamic:SubMenu()
-  end
+  --local inBuffGroup -- unused? nil?
+  --if inBuffGroup then
+  --  dyn:SubMenu(nil, nil)
+  --end
 
-  BOM.PopupDynamic:AddItem()
+  table.insert(menuItems, popupModule:Separator())
+
   --self:PopupQuickOptions()
-  BOM.PopupDynamic:AddItem(L.BtnSettings, false, bomOpenOptions, 1)
 
-  BOM.PopupDynamic:Show(control or "cursor", 0, 0)
+  table.insert(menuItems, popupModule:Clickable(_t("optionsMenu.Settings"),
+          optionsPopupModule.OpenOptions, 1, nil))
+
+  dyn:SetMenuItems(menuItems)
+  dyn:Show(control or "cursor", 0, 0)
 end
