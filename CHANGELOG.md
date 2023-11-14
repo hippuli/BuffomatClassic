@@ -1,5 +1,14 @@
 # Changelog
 
+## Buffomat Classic 2023.11.0
+
+- Updated the copy of KvLib for classic compatibility. Was using Windows directory Junctions before and that didn't go well.
+- [Bug] Now updating player weapon enchantments on unit buff rescan. This helped solve the long standing Rockbiter bug.
+
+## Buffomat Classic 2023.9.0
+
+- 10min rebuff time was not working with druid thorns.
+
 ## Buffomat Classic 2023.8.0-1
 
 - Fixing bugs related to Classic Hardcode, item ids from future expansions leaking into classic don't work well.

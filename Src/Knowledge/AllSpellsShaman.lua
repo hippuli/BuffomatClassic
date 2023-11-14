@@ -11,8 +11,8 @@ local spellIdsModule = BomModuleManager.spellIdsModule
 ---@param allBuffs BomBuffDefinition[]
 ---@param enchants BomEnchantmentsMapping
 function shamanModule:SetupShamanSpells(allBuffs, enchants)
-  local duration = allBuffsModule.TbcOrClassic(allBuffsModule.DURATION_20M, allBuffsModule.DURATION_10M)
-  local enchantmentDuration = allBuffsModule.TbcOrClassic(allBuffsModule.DURATION_30M, allBuffsModule.DURATION_5M) -- TBC: Shaman enchants become 30min
+  local duration = allBuffsModule.TbcOrClassic(allBuffsModule.TWENTY_MINUTES, allBuffsModule.TEN_MINUTES)
+  local enchantmentDuration = allBuffsModule.TbcOrClassic(allBuffsModule.HALF_AN_HOUR, allBuffsModule.FIVE_MINUTES) -- TBC: Shaman enchants become 30min
 
   -- Flametongue Weapon
   buffDefModule:createAndRegisterBuff(allBuffs, spellIdsModule.Shaman_Flametongue6, nil)
@@ -65,7 +65,7 @@ function shamanModule:SetupShamanSpells(allBuffs, enchants)
                :Category("classWeaponEnchantment")
 
   -- Note: in TBC all enchantIds for rockbiter have changed
-  enchants[16316] = { 1, 6, 29 , 503, 504, 683, 1663, 1664, -- Rockbiter, also 504 some special +80 Rockbiter?
+  enchants[16316] = { 1, 6, 29, 503, 504, 683, 1663, 1664, -- Rockbiter, also 504 some special +80 Rockbiter?
                       3040, -- rockbiter 7
                       3023, 3026, 3028, 3031, 3034, 3037, 3040, -- TBC: Rockbiter 1-7
                       2632, 2633 } -- TBC: Rockbiter 8-9
@@ -74,7 +74,7 @@ function shamanModule:SetupShamanSpells(allBuffs, enchants)
   buffDefModule:createAndRegisterBuff(allBuffs, 16362, nil)
                :BuffType("weapon")
                :ClassicBuffTypeIsSeal()
-               :IsOwn(true)
+               --:IsOwn(true)
                :IsConsumable(false)
                :IsDefault(false)
                :SingleDuration(enchantmentDuration)
@@ -114,7 +114,7 @@ function shamanModule:SetupShamanSpells(allBuffs, enchants)
   -- Water Walking (no reagent in WotLK with a glyph)
   buffDefModule:createAndRegisterBuff(allBuffs, 546, nil)
                :IsDefault(false)
-               :SingleDuration(allBuffsModule.DURATION_10M)
+               :SingleDuration(allBuffsModule.TEN_MINUTES)
                :DefaultTargetClasses(allBuffsModule.BOM_ALL_CLASSES)
                :RequirePlayerClass("SHAMAN")
                :Category("class")
@@ -122,7 +122,7 @@ function shamanModule:SetupShamanSpells(allBuffs, enchants)
   -- Water Breathing (no reagent in WotLK with a glyph)
   buffDefModule:createAndRegisterBuff(allBuffs, 131, nil)
                :IsDefault(false)
-               :SingleDuration(allBuffsModule.DURATION_10M)
+               :SingleDuration(allBuffsModule.TEN_MINUTES)
                :DefaultTargetClasses(allBuffsModule.BOM_ALL_CLASSES)
                :RequirePlayerClass("SHAMAN")
                :Category("class")
