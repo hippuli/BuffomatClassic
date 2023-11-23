@@ -6,6 +6,7 @@ local BOM = BuffomatAddon ---@type BomAddon
 ---@shape BomBuffDefinitionModule
 local buffDefModule = BomModuleManager.buffDefinitionModule ---@type BomBuffDefinitionModule
 
+local _t = BomModuleManager.languagesModule
 local envModule = KvModuleManager.envModule
 local buffomatModule = BomModuleManager.buffomatModule
 local spellCacheModule = BomModuleManager.spellCacheModule
@@ -109,6 +110,8 @@ end
 ---@field singleLink string Printable link for single buff. Use buffdef:SingleLink() to safely handle missing value
 ---@field singleMana number Mana cost
 ---@field singleText string Name of single buff spell (from GetSpellInfo())
+---@field consumeGroupTitle string Override spell name for groups of consumable buffs providing same stat
+---@field consumeGroupIcon WowIconId Override buff icon for groups of consumables
 ---@field skipList string[] If spell cast failed, contains recently failed targets
 ---@field spellIcon WowIconId
 ---@field targetClasses BomClassName[] List of target classes which are shown as toggle boxes to enable cast per class
@@ -164,6 +167,20 @@ function buffDefModule:genericConsumable(allBuffs, singleId, providedByItem)
                          :IsConsumable(true)
                          :IsDefault(false)
                          :CreatesOrProvidedByItem(providedByItem)
+  return b
+end
+
+---@param allBuffs BomBuffDefinition[]
+---@param buffId NewBuffId
+---@param providesAuras WowSpellId[] Auras from the food
+---@param providedByItems WowItemId[] Item or multiple items giving this buff
+---@return BomBuffDefinition
+function buffDefModule:consumableGroup(allBuffs, buffId, providesAuras, providedByItems)
+  local b = buffDefModule:createAndRegisterBuff(allBuffs, providesAuras[1], nil)
+                         :IsConsumable(true)
+                         :IsDefault(false)
+                         :ProvidesAuras(providesAuras)
+                         :CreatesOrProvidedByItem(providedByItems)
   return b
 end
 
@@ -296,6 +313,13 @@ function buffDefClass:IsConsumable(isConsum)
   return self
 end
 
+local function reverseTable(tab)
+  for i = 1, math.floor(#tab / 2), 1 do
+    tab[i], tab[#tab - i + 1] = tab[#tab - i + 1], tab[i]
+  end
+  return tab
+end
+
 ---@param itemId WowItemId|WowItemId[]
 ---@return BomBuffDefinition
 function buffDefClass:CreatesOrProvidedByItem(itemId)
@@ -305,12 +329,21 @@ function buffDefClass:CreatesOrProvidedByItem(itemId)
     self.items = --[[---@type WowItemId[] ]] itemId
   end
 
+  -- Clone item ids, and reverse
+  self.itemsReverse = {}
+  for _, val in pairs(--[[---@not nil]] self.items) do
+    table.insert(self.itemsReverse, val)
+  end
+  reverseTable(self.itemsReverse)
+
   return self
 end
 
 function buffDefClass:EnsureDynamicMinLevelSet()
   -- No need to update
-  if self.limitations and type(self.limitations.minLevel) == "number" then return end
+  if self.limitations and type(self.limitations.minLevel) == "number" then
+    return
+  end
 
   -- Set minLevel if item has minLevel, for multiple items in the array - pick lowest requirement
   -- If any of the requirements are nil, means the item cannot have the level requirement at all, reset and break loop
@@ -458,6 +491,28 @@ function buffDefClass:GroupDuration(duration)
   return self
 end
 
+---@param consumeType "food"|"elixir"|"scroll"
+---@param title string
+---@param icon WowIconId
+---@return BomBuffDefinition
+function buffDefClass:ConsumeGroupTitle(consumeType, title, icon)
+  local prefix
+
+  if consumeType == "elixir" then
+    prefix = buffomatModule:Color("1eff00", _t("consumeType.elixir"))
+  elseif consumeType == "scroll" then
+    prefix = buffomatModule:Color("1eff00", _t("consumeType.scroll"))
+  elseif consumeType == "food" then
+    prefix = buffomatModule:Color("1eff00", _t("consumeType.food"))
+  elseif consumeType ~= "food" then
+    prefix = "Unknown consume type: " .. consumeType
+  end
+
+  self.consumeGroupTitle = prefix .. " (" .. title .. ")"
+  self.consumeGroupIcon = icon
+  return self
+end
+
 function buffDefClass:ClassicBuffTypeIsSeal()
   -- for before TBC make this a seal spell, for TBC do not modify
   if not envModule.haveTBC then
@@ -597,10 +652,13 @@ function buffDefClass:IgnoreIfHaveBuff(spellId)
   self.ignoreIfBetterBuffs = self.ignoreIfBetterBuffs or {}
   if type(spellId) == "number" then
     tinsert(self.ignoreIfBetterBuffs, spellId)
-  else
+  elseif type(spellId) == "table" then
     for _i, spell in ipairs(--[[---@type WowSpellId[] ]] spellId) do
       tinsert(self.ignoreIfBetterBuffs, spell)
     end
+  else
+    BOM:Print(string.format("Spell %s was given invalid value for 'ignoreifhavebuff' %s",
+            tostring(self.buffId), tostring(spellId)))
   end
   return self
 end
@@ -675,7 +733,7 @@ end
 
 ---Call function with the icon when icon value is ready, or immediately if value
 ---is available. This allows for late loaded icons.
----@param iconReadyFn fun(icon: string)
+---@param iconReadyFn fun(icon: string|WowSpellId)
 function buffDefClass:GetIcon(iconReadyFn)
   if self.itemIcon then
     iconReadyFn(self.itemIcon) -- value was ready
@@ -705,7 +763,7 @@ end
 
 function buffDefClass:IsItem()
   -- TODO: self.isConsumable does this too?
-  return self.items and next(self.items) ~= nil
+  return self.items and next(--[[---@not nil]] self.items) ~= nil
 end
 
 ---@param unit BomUnit
@@ -769,12 +827,6 @@ function buffDefClass:RefreshTextAndIcon(iconReadyFn, nameReadyFn)
   -- nil otherwise
 end
 
------@return WowSpellId
---function buffDefClass:GetFirstSingleId()
---  local _, singleId = next(self.singleFamily)
---  return singleId
---end
-
 ---@return WowItemId|nil
 function buffDefClass:GetFirstItem()
   local _, itemId = next(self.items)
@@ -810,7 +862,14 @@ function buffDefClass:GetDownRank(spellId)
   return downrank -- unsuccessful but return whatever found
 end
 
-function buffDefClass:SingleLink()
+---@param bestItemIdAvailable WowItemId|nil If set, will request item link to a specific item
+function buffDefClass:SingleLink(bestItemIdAvailable)
+  if bestItemIdAvailable then
+    local itemInfo = BOM.GetItemInfo(--[[---@not nil]] bestItemIdAvailable)
+    if itemInfo then
+      return (--[[---@not nil]] itemInfo).itemLink
+    end
+  end
   return (self.singleLink or self.singleText) or "?"
 end
 
@@ -832,4 +891,19 @@ function buffDefModule:NumberList(classic, tbc, wotlk)
     end
   end
   return itemIds1
+end
+
+function buffDefClass:ShowItemsProvidingBuff()
+  BOM:Print(buffomatModule:Color("0070dd", string.format(_t("Items, which provide buff for %s:"), self.consumeGroupTitle)))
+
+  local output = ""
+
+  for _, itemId in ipairs(self.items or {}) do
+    local info = BOM.GetItemInfo(itemId)
+    if info then
+      output = output .. (--[[---@not nil]] info).itemLink .. " "
+    end
+  end
+
+  BOM:Print(output)
 end

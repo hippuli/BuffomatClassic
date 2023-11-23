@@ -1008,28 +1008,31 @@ end
 function taskScanModule:AddConsumableSelfbuff_NoItem(buffDef, count, playerUnit)
   -- Text: "ConsumableName" x Count
   tasklist:Add(
-          taskModule:Create(self:FormatItemBuffInactiveText(buffDef.singleText, --[[---@not nil]] count), nil)
-                    :PrefixText(_t("task.type.Use"))
+          taskModule:Create(
+                  self:FormatItemBuffInactiveText(buffDef.consumeGroupTitle or buffDef.singleText, --[[---@not nil]] count),
+                  nil)
+                    :PrefixText(_t("task.type.Consume"))
                     :Target(buffTargetModule:FromSelf(playerUnit))
                     :Prio(taskModule.PRIO_CONSUMABLE)
                     :IsInfo())
 end
 
 ---@param buffDef BomBuffDefinition - the spell to cast
+---@param bestItemIdAvailable WowItemId From the list of compatible consumables, return best available item
 ---@param bag number
 ---@param slot number
 ---@param count number
 ---@param playerUnit BomUnit the player
 ---@param target string
-function taskScanModule:AddConsumableSelfbuff_HaveItemReady(buffDef, bag, slot, count, playerUnit, target)
-  local taskText = _t("task.type.Use")
+function taskScanModule:AddConsumableSelfbuff_HaveItemReady(buffDef, bestItemIdAvailable, bag, slot, count, playerUnit, target)
+  local taskText = _t("task.type.Consume")
   if buffDef.tbcHunterPetBuff then
     taskText = _t("task.type.tbcHunterPetBuff")
   end
 
   local task = taskModule:Create(self:FormatItemBuffText(bag, slot, count or 0), nil)
                          :PrefixText(taskText)
-                         :Target(buffTargetModule:FromSelf(playerUnit))
+  --:Target(buffTargetModule:FromSelf(playerUnit))
 
   if buffomatModule.shared.DontUseConsumables
           and not IsModifierKeyDown() then
@@ -1038,12 +1041,10 @@ function taskScanModule:AddConsumableSelfbuff_HaveItemReady(buffDef, bag, slot, 
                      :IsInfo())
   else
     if bag ~= nil and slot ~= nil then
-      local action = actionUseModule:New(buffDef, target, bag, slot, nil)
+      local action = actionUseModule:New(buffDef, target, bag, slot, nil, bestItemIdAvailable)
 
       -- Text: [Icon] [Consumable Name] x Count
-      tasklist:Add(task
-              :Action(action)
-              :InRange(true))
+      tasklist:Add(task:Action(action):InRange(true))
     else
       BOM:Debug(string.format("Taskscan: bag %s slot %s", tostring(bag), tostring(slot)))
     end
@@ -1058,10 +1059,19 @@ end
 ---@param target string Insert this text into macro where [@player] target text would go
 ---@param buffCtx BomBuffScanContext
 function taskScanModule:AddConsumableSelfbuff(buffDef, playerUnit, target, buffCtx)
-  local haveItemOffCD, bag, slot, count = buffChecksModule:HasItem(buffDef.items or {}, true)
+  -- Setting to choose best or worst. Worst useful for leveling to eat old stuff first.
+  local itemsProvidingBuff = buffDef.itemsReverse
+  if not buffomatModule.shared.BestAvailableConsume then
+    itemsProvidingBuff = buffDef.items
+  end
+
+  local haveItemOffCD, bag, slot, count, bestItemIdAvailable = buffChecksModule:HasItem(itemsProvidingBuff or {}, true)
 
   if haveItemOffCD then
-    self:AddConsumableSelfbuff_HaveItemReady(buffDef, bag, slot, count, playerUnit, target)
+    self:AddConsumableSelfbuff_HaveItemReady(
+            buffDef, --[[---@not nil]] bestItemIdAvailable,
+            --[[---@not nil]] bag, --[[---@not nil]]  slot, --[[---@not nil]] count,
+            playerUnit, target)
   else
     self:AddConsumableSelfbuff_NoItem(buffDef, count or 0, playerUnit)
   end
@@ -1639,18 +1649,27 @@ end
 ---Reloads party members and refreshes their buffs as necessary.
 ---@return BomParty
 function taskScanModule:RotateInvalidatedGroup_GetGroup()
+  partyModule:InvalidatePartyGroup(self.roundRobinGroup)
+  local party = partyModule:GetParty()
+
+  -- Step to the next nonempty group
+  local repeatCounter = 9 -- to prevent endless loop if due to a bug all emptyGroups are empty
   if IsInRaid() then
     -- In raid we rotate groups 1 till 8 every refresh
-    self.roundRobinGroup = self.roundRobinGroup + 1
-    if self.roundRobinGroup > 8 then
-      self.roundRobinGroup = 1
-    end
+    repeat
+      self.roundRobinGroup = self.roundRobinGroup + 1
+
+      if self.roundRobinGroup > 8 then
+        self.roundRobinGroup = 1
+      end
+
+      repeatCounter = repeatCounter - 1
+    until not party.emptyGroups[self.roundRobinGroup] or repeatCounter <= 0
   else
     self.roundRobinGroup = 1 -- always reload group 1 (also this is ignored in solo or 5man)
   end
 
-  partyModule:InvalidatePartyGroup(self.roundRobinGroup)
-  return partyModule:GetParty()
+  return party
 end
 
 function taskScanModule:UpdateScan_PreCheck(from)
