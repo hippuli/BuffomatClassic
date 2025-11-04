@@ -1,6 +1,6 @@
 <Bindings>
-  <Binding name="MACRO Buff'o'mat" header="BUFFOMATHEADER"/>
-  <Binding name="BUFFOMAT_WINDOW">
-    BuffomatAddon.ShowWindow()
+  <Binding name="MACRO Buff'o'mat" header="BUFFOMATHEADER" category="Buffomat" />
+  <Binding name="BUFFOMAT_WINDOW" category="Buffomat">
+    LibStub("Buffomat-TaskListPanel"):ToggleWindow(true)
   </Binding>
 </Bindings>

@@ -1,15 +1,93 @@
 # Changelog
 
+## Buffomat Classic 2025.5.5
+
+- [Bug] Fixed issue with "Missing Buffs to use a group buff" setting where setting it to 2 (or higher) would cause buffs to not be detected or applied when only 1 party member was missing the buff. The logic now properly checks per-group requirements for pre-WotLK and total requirements for WotLK, ensuring single buffs are cast when group buffs don't meet the threshold.
+
+## Buffomat Classic 2025.5.4
+
+- Spell downranking: Restored the old broken feature, where a spell would automatically downrank if casted on a target too low level. As there isn't a way for addon to know it, it will learn from unsuccessful casts (you will need to cast the same buff again after it has learned). Requires enabled option for Downranking in 4.Convenience options tab.
+- Reintroducing option "Autoshow" when disabled, the task list will not be auto-showing till user actually calls it with a hotkey or menu, regardless of whether there are tasks or not.
+- Mage armor-type spells have now duration set to 30min, to allow better estimate of remaining duration for  rebuffing.
+
+## Buffomat Classic 2025.5.3
+
+- Option for drive-by buffing, your target is considered for a buff check, even if not part of the group.
+
+## Buffomat Classic 2025.5.1
+
+- Min fade opacity lowered to 0.1 (10%)
+- An option was reintroduced: Auto close. When active, and the window would
+  fade due to no tasks available, it will hide instead till the next scan.
+  The window will be shown again if there's a buff to refresh.
+
+## Buffomat Classic 2025.3.4 / 2025.5.0
+
+- Big UI overhaul: New task list window, simpler and faster, new spell settings, easier access to main settings, multiple minor UI improvements, too.
+- Window hide/fade/show behaviour has changed to be less annoying and more like the previous version.
+
+## Buffomat Classic 2025.1.0, 2025.2.0
+
+- Found possible reason for group buffs not working. Releasing a beta fix.
+- Version bump with WoW classic updated to 1.15.6
+
+## Buffomat Classic 2024.7.1
+
+- When Macro edit frame is open, Buffomat will sleep
+- Sorting the buffs inside each group alphabetically
+
+## Buffomat Classic 2024.7.0
+
+- [Paladin] In Cataclysm Crusader aura has changed its shapeshift-id from 7 to
+
+5. This update will fix the crusader aura autobuff behaviour in Cataclysm.
+
+## Buffomat Classic 2024.6.2
+
+- [Mage] Mana gem fixed.
+- [Cataclysm] Added Abyssal Clam and older clams to the openable containers list.
+- [Cataclysm] Alchemist only Flask of Enhancement added.
+
+## Buffomat Classic 2024.5.4
+
+- [Cataclysm] Prepatch fix. Stay tuned for actual Cataclysm update.
+- [Cataclysm] Elixirs, flasks, food buffs.
+- [Cataclysm] Rogue poisons. Also see: Restocker Classic addon to auto-buy.
+- [Cataclysm] Priest buffs fix
+- [Bug] 'providesAuras' was working for consumables only, now also for buffs. Allows to account for fortitude and shadow
+  protection being already on priest.
+- Missing: Combo meals, alchemist flask.
+
+## Buffomat Classic 2024.4.0
+
+- [Druid] Do not /cancelform in moonkin form by adding `[noform:5]` to it.
+- Minimap button is now using LibAce's standard library. Removed options for
+  button rotation and distance, as they're now handled by the external library.
+  Clicking the button toggles the window, right clicking shows quick menu.
+- [Bug] Remaining reference in code to minimapButton is removed
+
+## Buffomat Classic 2024.3.0
+
+- [SoD] [Shaman] Dual wield enchantments work again. Known problem: You can't
+  leave mainhand unenchanted, it always does mainhand first.
+
+## Buffomat Classic 2023.12.1
+
+- [SoD] [Hunter] Heart of the Lion 10% stats aura
+
 ## Buffomat Classic 2023.11.4
 
-- Single rows for each food buff are now grouped per stat they provide, including all levels (helps while leveling). Highest 
+- Single rows for each food buff are now grouped per stat they provide, including all levels (helps while leveling).
+  Highest
   available in your bag will be eaten first (and a setting to choose lowest first).
   - New grouped buffs are marked with green text
-  - New option (last in the "Scan Options") to prefer either highest available 
+  - New option (last in the "Scan Options") to prefer either highest available
     item, or lowest. Lowest is useful when leveling, to consume your lowest level consumables first.
   - Clicking the icon in the buff list to print all items, which can provide this buff, from lowest to highest.
-  - Added food eating auras to ignore list to hide the food buff task while eating, so it doesn't get eaten multiple times.
-- [Known Bug] Soon after resurrecting under the flask effect, Buffomat can show a task for reflasking. It disappears a second or two later.
+  - Added food eating auras to ignore list to hide the food buff task while eating, so it doesn't get eaten multiple
+    times.
+- [Known Bug] Soon after resurrecting under the flask effect, Buffomat can show a task for reflasking. It disappears a
+  second or two later.
 - In raid, staggered per-group updates now will skip empty 5man groups, which will result in faster updates overall.
 
 ## Buffomat Classic 2023.11.1
@@ -182,10 +260,10 @@
 - All versions of addon are now merged into one, and you should delete (either automatically or manually the old "
   Buffomat Classic TBC")
 - A big new wave of updates for Wrath of the Lich King:
-    - New class spell ranks
-    - New elixirs
-    - New food
-    - New weapon enchantments
+  - New class spell ranks
+  - New elixirs
+  - New food
+  - New weapon enchantments
 - A new page in Options which allows Visibility selection for buff categories. Invisible categories are not scanned,
   even if they're checked.
 - Skip mage Intellect buff if K'iru's Song of Victory is up in SWP or the island. Same for group buffs (Arcane
@@ -849,4 +927,4 @@
 
 ## 0.10
 
-- first release_
+- first release\_

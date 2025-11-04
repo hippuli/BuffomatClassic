@@ -2,7 +2,7 @@
 
 Based on Buff'o'mat by GPI.
 
-Maintained by @kvakvs at Github. https://github.com/kvakvs/BuffomatClassic
+Maintained by @kvakvs at Github. https://github.com/kvakvs-plays/Buffomat
 
 Compatible with WoW Classic and will be rolled into Classic Burning Crusade. As
 I only play Classic and have no idea about retail spells and playstyles, I won't

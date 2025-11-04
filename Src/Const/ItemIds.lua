@@ -1,9 +1,8 @@
 --- Item IDS given reasonable names
---local TOCNAME, _ = ...
---local BOM = BuffomatAddon ---@type BomAddon
 
----@shape BomItemIdsModule
-local itemIdsModule = BomModuleManager.itemIdsModule ---@type BomItemIdsModule
+---@class ItemIdsModule
+
+local itemIdsModule = LibStub("Buffomat-ItemIds") --[[@as ItemIdsModule]]
 
 itemIdsModule.Deathknight_CorpseDust = 37201
 
@@ -13,6 +12,7 @@ itemIdsModule.Mage_ManaRuby = 8008
 itemIdsModule.Mage_ManaCitrine = 8007
 itemIdsModule.Mage_ManaJade = 5513
 itemIdsModule.Mage_ManaAgate = 5514
+itemIdsModule.Mage_Cataclysm_ManaGem = 36799
 
 itemIdsModule.Warlock_SoulShard = 6265
 itemIdsModule.Warlock_Spellstone1 = 41191
@@ -30,3 +30,8 @@ itemIdsModule.Warlock_Firestone6 = 41173
 itemIdsModule.Warlock_Firestone7 = 41174
 
 itemIdsModule.Paladin_SymbolOfKings = 21177
+
+itemIdsModule.Classic_BigmouthClam = 7973
+itemIdsModule.TBC_JaggalClam = 24476
+itemIdsModule.WotLK_DarkwaterClam = 36781
+itemIdsModule.Cataclysm_AbyssalClam = 52340
