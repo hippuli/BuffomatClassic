@@ -210,7 +210,7 @@ do
     --local extraButtonCount = 4
     local buttonWidthExtra = 20 -- `extraButtonCount` extra buttons 20px each left from the X button
 
-    -- [📜] button top right for all spell settings
+    -- [🐰🐑] button top right for all spell settings
     local spellsButton = CreateFrame("Button", nil, window.frame, "UIPanelCloseButton")
     spellsButton:SetPoint("TOPRIGHT", 2 - buttonWidthExtra * 4, 1)
     SetButtonTexture(spellsButton, constModule.BOM_SPELL_SETTINGS_ICON_FULLPATH)
@@ -241,7 +241,7 @@ do
     window.settingsButton = settingsButton
     settingsButton.obj = window
 
-    -- [🐻] button top right, draggable macro
+    -- [🧙‍♂️] button top right, draggable macro
     local macroButton = CreateFrame("Button", nil, window.frame, "UIPanelCloseButton")
     macroButton:SetPoint("TOPRIGHT", 2 - buttonWidthExtra, 1)
     SetButtonTexture(macroButton, constModule.BOM_BEAR_ICON_FULLPATH)

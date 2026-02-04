@@ -98,8 +98,8 @@ function sharedSettingsModule:Defaults()
     Duration = {},
     Width = 300,
     Height = 200,
-    X = 0,
-    Y = 0,
+    X = nil,
+    Y = nil,
 
     UIWindowScale = 1,
     AutoOpen = true,

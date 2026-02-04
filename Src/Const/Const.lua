@@ -23,9 +23,14 @@ constModule.TOC_TITLE = compat_GetAddonMetadata(TOCNAME, "Title")
 constModule.SHORT_TITLE = "Buffomat"
 constModule.MACRO_ICON = "INV_MISC_QUESTIONMARK"
 constModule.MACRO_ICON_DISABLED = "INV_MISC_QUESTIONMARK"
-constModule.BOM_BEAR_ICON_FULLPATH = "Interface\\ICONS\\Ability_Druid_ChallangingRoar"
+constModule.BOM_BEAR_ICON_FULLPATH = "Interface\\AddOns\\BuffomatClassic\\Icons\\Buffomat.png"
 constModule.BOM_OPTIONS_ICON_FULLPATH = "Interface\\ICONS\\INV_Misc_ScrollUnrolled01"
-constModule.BOM_SPELL_SETTINGS_ICON_FULLPATH = "Interface\\ICONS\\Spell_Magic_PolymorphRabbit"
+
+if WOW_PROJECT_ID == WOW_PROJECT_BURNING_CRUSADE_CLASSIC then
+  constModule.BOM_SPELL_SETTINGS_ICON_FULLPATH = "Interface\\ICONS\\Spell_Magic_PolymorphChicken"
+else
+  constModule.BOM_SPELL_SETTINGS_ICON_FULLPATH = "Interface\\ICONS\\Spell_Magic_PolymorphRabbit"
+end
 
 constModule.ICON_FORMAT = "|T%s:0:0:0:0:64:64:4:60:4:60|t"
 constModule.PICTURE_FORMAT = "|T%s:0|t"

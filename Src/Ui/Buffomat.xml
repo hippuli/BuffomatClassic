@@ -6,7 +6,7 @@
   </GameTooltip>
 
   <Button name="BomC_MyButtonSecure" virtual="true" enableMouse="true"
-          hidden="true" inherits="SecureActionButtonTemplate">
+          hidden="true" inherits="SecureUnitButtonTemplate">
     <Size>
       <AbsDimension x="15" y="15"/>
     </Size>
@@ -49,7 +49,7 @@
     </Layers>
   </Button>
 
-  <Button name="BomC_SecureButton" inherits="SecureActionButtonTemplate"
+  <Button name="BomC_SecureButton" inherits="SecureUnitButtonTemplate"
           virtual="true">
     <Size>
       <AbsDimension y="22" x="0"/>

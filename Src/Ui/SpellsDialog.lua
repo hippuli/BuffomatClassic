@@ -55,7 +55,7 @@ function spellsDialogModule:Show(preselectCategory)
   dialog:SetTitle(string.format(_t("title.SpellsWindow"),
     characterSettingsModule:LocalizedProfileName(self.useProfileName)))
   dialog:SetLayout("Fill")
-  dialog:SetWidth(550)
+  dialog:SetWidth(650)
   dialog:SetHeight(400)
   dialog:SetPoint("CENTER")
   -- dialog.frame:SetFrameStrata("DIALOG") -- float above other frames

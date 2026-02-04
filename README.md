@@ -77,4 +77,5 @@ during combat!
 * wellcat for the Chinese translation
 * OlivBEL for the french translation
 * Arrogant_Dreamer & kvakvs for the russian translation
-	
+* Free icons
+  * Main Icon (Wizard): https://www.flaticon.com/free-icons/wizard, created by max.icons

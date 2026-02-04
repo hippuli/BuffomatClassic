@@ -39,7 +39,11 @@ function taskListPanelModule:ConstructWindow()
 
   taskFrame:SetLayout("Fill")
   taskFrame:ClearAllPoints()
-  taskFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", BuffomatShared.X or 0, BuffomatShared.Y or 0)
+  if BuffomatShared.X == nil or BuffomatShared.Y == nil then
+    taskFrame:SetPoint("CENTER", UIParent, "CENTER")
+  else
+    taskFrame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", BuffomatShared.X, BuffomatShared.Y)
+  end
   taskFrame:SetWidth(BuffomatShared.Width or 300)
   taskFrame:SetHeight(BuffomatShared.Height or 200)
   taskFrame:SetCallback("OnClose", function()
