@@ -272,7 +272,18 @@ function partyClass:GetRaidMembers(invalidGroups)
       if name then
         name = toolboxModule:Split(name, "-")[1]
         nameGroupMap[name] = subgroup
-        nameRoleMap[name] = role
+        -- Priority for role detection:
+        --   1. Legacy MAINTANK/MAINASSIST flag set by raid leader (right-click "Set Main Tank")
+        --      wins so a DPS-specced warrior marked MAINTANK is still recognised as a tank.
+        --   2. Modern combatRole ("TANK"/"HEALER"/"DAMAGER") from spec/LFG.
+        --   3. Fall back to whatever role string GetRaidRosterInfo returned ("NONE").
+        if role == "MAINTANK" or role == "MAINASSIST" then
+          nameRoleMap[name] = role
+        elseif combatRole == "TANK" or combatRole == "HEALER" or combatRole == "DAMAGER" then
+          nameRoleMap[name] = combatRole
+        else
+          nameRoleMap[name] = role
+        end
       end
 
       local partyMember = unitCacheModule:GetUnit("raid" .. raidIndex, nameGroupMap, nameRoleMap, nil)

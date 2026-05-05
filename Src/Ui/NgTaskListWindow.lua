@@ -183,6 +183,39 @@ do
     self.sizer_e[func](self.sizer_e)
   end
 
+  ---Check if window header is dragged so far off-screen the user cannot grab it.
+  ---Returns true when less than 25% of the title-bar width or less than one full
+  ---title-bar height is inside the visible UIParent rectangle.
+  ---@param self NgTaskListWindow
+  ---@return boolean
+  local function isWindowOutOfBounds(self)
+    local title = self.title
+    local titleLeft = title:GetLeft()
+    local titleRight = title:GetRight()
+    local titleTop = title:GetTop()
+    local titleBottom = title:GetBottom()
+    if not (titleLeft and titleRight and titleTop and titleBottom) then
+      return false
+    end
+
+    local screenWidth = UIParent:GetRight() or 0
+    local screenHeight = UIParent:GetTop() or 0
+
+    local titleWidth = titleRight - titleLeft
+    local titleHeight = titleTop - titleBottom
+
+    local visibleWidth = math.max(0, math.min(titleRight, screenWidth) - math.max(titleLeft, 0))
+    local visibleHeight = math.max(0, math.min(titleTop, screenHeight) - math.max(titleBottom, 0))
+
+    if titleWidth > 0 and visibleWidth < titleWidth * 0.25 then
+      return true
+    end
+    if titleHeight > 0 and visibleHeight < titleHeight then
+      return true
+    end
+    return false
+  end
+
   ---@param button Button
   local function SetButtonTexture(button, texture)
     -- button:SetNormalTexture(texture)
@@ -282,6 +315,7 @@ do
     window.OnWidthSet = OnWidthSet
     window.OnHeightSet = OnHeightSet
     window.EnableResize = EnableResize
+    window.isWindowOutOfBounds = isWindowOutOfBounds
 
     window.localstatus = {}
 

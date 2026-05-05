@@ -23,6 +23,10 @@ local taskListPanelModule = LibStub("Buffomat-TaskListPanel") --[[@as TaskListPa
 taskListPanelModule.titleProfile = ""
 taskListPanelModule.titleBuffGroups = ""
 
+-- Tracks whether last bounds check found the window off-screen, so the warning
+-- is printed only once per transition into/out of the bad state.
+local flagIsOutofBounds = false
+
 local _t = LibStub("Buffomat-Languages") --[[@as LanguagesModule]]
 local actionMacroModule = LibStub("Buffomat-ActionMacro") --[[@as BomActionMacroModule]]
 local buffomatModule = LibStub("Buffomat-Buffomat") --[[@as BuffomatModule]]
@@ -283,6 +287,22 @@ function taskListPanelModule:SavePosition()
     BuffomatShared.Y = self.taskFrame.frame:GetTop()
     BuffomatShared.Width = self.taskFrame.frame:GetWidth()
     BuffomatShared.Height = self.taskFrame.frame:GetHeight()
+  end
+  self:CheckWindowBounds()
+end
+
+---Warn once when the task list window is dragged off-screen so the user knows
+---to run /bom reset. Resets the latch when the window returns on-screen.
+function taskListPanelModule:CheckWindowBounds()
+  if self.taskFrame == nil or self.taskFrame.isWindowOutOfBounds == nil then
+    return
+  end
+  local outOfBounds = self.taskFrame:isWindowOutOfBounds()
+  if outOfBounds and not flagIsOutofBounds then
+    flagIsOutofBounds = true
+    BuffomatAddon:Print("Window is off-screen. Use /bom reset to restore it.")
+  elseif not outOfBounds and flagIsOutofBounds then
+    flagIsOutofBounds = false
   end
 end
 

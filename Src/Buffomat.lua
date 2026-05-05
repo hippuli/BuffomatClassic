@@ -261,6 +261,7 @@ end
 
 function buffomatModule:InitUI()
   taskListPanelModule:ShowWindow("buffomat:InitUI")
+  taskListPanelModule:CheckWindowBounds()
   self:ScheduleUpdateTimer()
 
   BuffomatAddon.popupMenuDynamic = popupModule:CreatePopup(buffomatModule.OptionsUpdate)
