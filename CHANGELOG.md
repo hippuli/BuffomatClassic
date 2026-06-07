@@ -1,5 +1,10 @@
 # Changelog
 
+## Buffomat Classic 2026.5.2
+
+- A new option for "Hiding window if scanning is disabled" for whatever reason. Convenience option.
+- Translations updated
+
 ## Buffomat Classic 2026.3.0
 
 - Fix for pets not being detected correctly in other languages than English (by jdelvare)

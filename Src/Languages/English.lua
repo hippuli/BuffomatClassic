@@ -65,6 +65,7 @@ function englishModule:Translations()
 
     ["options.short.ActivateBomOnSpiritTap"] = "Activate on Spirit Tap below mana %",
     ["options.short.AutoClose"] = "Auto close Buffomat, when no tasks.",
+    ["options.short.HideWhenScanBlocked"] = "Hide Buffomat when scanning is blocked",
     ["options.short.AutoCrusaderAura"] = "Suggest crusader aura",
     ["options.short.AutoDismount"] = "Auto dismount",
     ["options.short.AutoDismountFlying"] = "Auto dismount flying",
@@ -81,6 +82,7 @@ function englishModule:Translations()
     ["options.short.InInstance"] = "Scan in instance",
     ["options.short.InPVP"] = "Scan in PvP",
     ["options.short.InWorld"] = "Scan in world",
+    ["options.short.Language"] = "Language",
     -- ["options.short.LockMinimapButton"] = "Lock minimap button",
     -- ["options.short.LockMinimapButtonDistance"] = "Lock minimap button distance",
     ["options.short.MainHand"] = "Missing mainhand enchantment",
@@ -107,6 +109,7 @@ function englishModule:Translations()
     ["options.long.ActivateBomOnSpiritTap"] =
     "Disable Buffomat if priest 'Spirit tap' is active and player mana is below %",
     ["options.long.AutoClose"] = "Auto close Buffomat, when the last task is done",
+    ["options.long.HideWhenScanBlocked"] = "Hide the Buffomat window when scanning is stopped by inactive conditions, such as mounted, resting, stealth, taxi, vehicle, death, disabled zone, or Spirit Tap.",
     ["options.long.AutoCrusaderAura"] = "Paladin: Auto crusader aura when mounted",
     ["options.long.AutoDismount"] = "Auto-dismount from the ground mount on cast",
     ["options.long.AutoDismountFlying"] = "Auto-drop from the flying mount on cast (OUCH)",
@@ -127,6 +130,7 @@ function englishModule:Translations()
     ["options.long.InInstance"] = "Scan buffs in dungeons and raids",
     ["options.long.InPVP"] = "Scan buffs in battlegrounds",
     ["options.long.InWorld"] = "Scan buffs in the world and cities",
+    ["options.long.Language"] = "Select Buffomat's UI language. Reload UI to apply changes.",
     -- ["options.long.LockMinimapButton"] = "Lock minimap button position",
     -- ["options.long.LockMinimapButtonDistance"] = "Minimize minimap button distance",
     ["options.long.MainHand"] = "Warn if main hand enchantment is missing",
@@ -223,6 +227,7 @@ function englishModule:Translations()
     ["castButton.inactive.Taxi"] = "No buffing on taxi",
     ["castButton.inactive.Vehicle"] = "No buffing in a vehicle",
     ["castbutton.inactive.GCD"] = "Global cooldown",
+    ["castButton.inactive.GlobalCooldown"] = "Global cooldown",
 
     ["error.castFailed.tooLowLevel"] = "Spell rank downgrade %s for %s. Please cast again.",
 
