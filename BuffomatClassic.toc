@@ -1,16 +1,17 @@
-#
-# Do not edit - this file is generated from TOC_TEMPLATE.TOC
-#
-## Interface: 20505
+## Interface: 20506
 ## Title: Buffomat Classic
 ## Notes: Semi-automatic buff and resurrection bot, compatible with Classic, TBC, and WotLK Classic
-## Version: 2026.6.0-c5f91049
+## Version: 2026.7.0-92344c09
 ## Author: kvakvs; original by GPI/Erytheia-Razorfen
 ## DefaultState: enabled
 ## SavedVariables: BuffomatShared
 ## SavedVariablesPerCharacter: BuffomatCharacter
 ## IconTexture: Interface\AddOns\BuffomatClassic\Icons\Buffomat.png
 ## X-Curse-Project-ID: 450627
+
+#
+# Do not edit - this file is generated from TOC_TEMPLATE.TOC
+#
 
 embeds.xml
 
