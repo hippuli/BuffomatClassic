@@ -38,8 +38,12 @@ function actionCastModule:New(cost, spellId, link, targetUnit, buffDef, temporar
 end
 
 function actionCastClass:CanCast()
-  local cdtest = GetSpellCooldown(self.spellId) or 0
-  if cdtest ~= 0 then
+  -- Unknown cooldown (nil) counts as ready. Scans never run in combat or under
+  -- addon restrictions, so nil means the client gave no data; blocking left
+  -- the cast button stuck on "Nothing to do" with no rescan to recover it.
+  -- The client still rejects a cast that really is on cooldown.
+  local cdtest = envModule.GetSpellCooldown(self.spellId)
+  if cdtest ~= nil and cdtest ~= 0 then
     BuffomatAddon.checkCooldown = self.spellId
     --BomC_ListTab_Button:Disable()
     return taskModule.CAN_CAST_ON_CD
@@ -124,7 +128,7 @@ function actionCastClass:UpdateMacro(m)
         for i = #spellChoices, 1, -1 do
           local tryRankSpellId = spellChoices[i]
 
-          if IsSpellKnown(tryRankSpellId) then
+          if envModule.IsSpellKnown(tryRankSpellId) then
             -- Is this spell castable on this target?
             -- * Do we not know what happens if we cast this spell? (no record in TargetTooLowLevel)
             -- * Have we learned that the target level is too low? (have record in TargetTooLowLevel)
@@ -147,7 +151,7 @@ function actionCastClass:UpdateMacro(m)
   BuffomatAddon.castFailedSpellId = self.spellId
 
   -- TODO: Want to use BuffomatAddon.GetSpellInfo but it is asyncronous, while GetSpellInfo is syncronous
-  local spellName = GetSpellInfo(self.spellId)
+  local spellName = envModule.GetSpellInfo(self.spellId)
   if spellName == nil then
     BuffomatAddon:Debug("Update macro: Bad spellid=" .. tostring(self.spellId))
     return
@@ -158,7 +162,7 @@ function actionCastClass:UpdateMacro(m)
   end
   -- table.insert(m.lines, "/bom _checkforerror")
 
-  local rank = GetSpellSubtext(self.spellId) or ""
+  local rank = envModule.GetSpellSubtext(self.spellId) or ""
 
   if rank ~= "" then
     rank = "(" .. rank .. ")"

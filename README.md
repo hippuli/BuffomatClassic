@@ -1,3 +1,21 @@
+<!-- wowup-repackaging-note -->
+> [!NOTE]
+> This repository is an unofficial repackaging of the original CurseForge addon,
+> maintained to make installation and update management available through WowUp.
+>
+> I am not the original author and do not claim ownership of the addon. Credit and
+> ownership remain with the original author and other contributors.
+>
+> Original project: <https://www.curseforge.com/wow/addons/buffomat-classic>
+>
+> If you are the original author or current maintainer and would like this
+> repository removed or made private, please contact me through GitHub. I will
+> honor the request.
+
+---
+
+## Original README
+
 # Buffomat Classic
 
 Based on Buff'o'mat by GPI.
@@ -72,6 +90,50 @@ during combat!
   Sanctity Aura, Redemption, Sense Undead
 * TRACKING Find Herbs, Find Minerals, Find Treasure
 
+## Building and installing
+
+Run the build tool from the repository root. Existing commands, including
+`--version classic`, `tbc`, `wotlk`, and `cata`, produce the combined Classic,
+TBC, Wrath, and Cataclysm package:
+
+```sh
+python wowaddon.py --dst="../_Releases" zip
+```
+
+The destination directory for ZIP files must already exist. Supported client TOCs
+use `_Vanilla`, `_TBC`, `_Wrath`, and `_Cata`, alongside the unsuffixed fallback.
+
+WoW: Forever has an explicit experimental build target using beta interface
+`16001`, as specified in the project compatibility notes. Its level-60 content
+uses Mainline/Midnight UI architecture. Build or install it with:
+
+```sh
+python wowaddon.py --version forever --dst="../_Releases" zip
+python wowaddon.py --version forever --dst="C:/Games/World of Warcraft/_classic_beta_/Interface/AddOns" install
+```
+
+The archive is named `BuffomatClassic_Camelot-<version>.zip`. It retains the
+`BuffomatClassic` addon folder, asset paths, and saved-variable names, and contains
+the Forever `BuffomatClassic_Camelot.toc` and an identical `BuffomatClassic.toc`
+fallback. Existing generated Classic TOCs are preserved.
+Restart the client if a newly installed addon folder does not appear.
+
+Forever runtime adaptations are integrated into the shared `KvEnv` compatibility
+layer and selected by client version and API availability. They include modern
+weapon imbues, tracking, inventory slots, class options, and public mana/range
+data. Buffomat skips combat-log registration on Forever, uses `UNIT_AURA` for
+buff updates, and pauses aura scanning during combat, encounters, challenge
+modes, and PvP restrictions. Unit-link clicks display `/who` or `/w` commands
+on Forever so the player can enter them without restricted chat activation.
+
+This remains experimental: automated tests cover mocked Classic and Forever
+APIs, not an actual Forever beta session. Verify loading, buff scans, both weapon
+imbues, restriction entry/exit, and buff-button/macro behavior in the client.
+The adaptations were ported from
+[yannlugrin/Buffomat's forever branch](https://github.com/yannlugrin/Buffomat/tree/69564aa)
+through commit `69564aa`, retaining this repository's aura and macro safeguards.
+The reference checkout in `references/forever-branch` is ignored and not packaged.
+
 ## Credits
 
 * wellcat for the Chinese translation
@@ -79,3 +141,4 @@ during combat!
 * Arrogant_Dreamer & kvakvs for the russian translation
 * Free icons
   * Main Icon (Wizard): https://www.flaticon.com/free-icons/wizard, created by max.icons
+* Yann Lugrin github @yannlugrin - thanks for initial push for the WoW: Forever port.

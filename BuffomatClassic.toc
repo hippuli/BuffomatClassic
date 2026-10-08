@@ -1,7 +1,7 @@
 ## Interface: 20506
 ## Title: Buffomat Classic
 ## Notes: Semi-automatic buff and resurrection bot, compatible with Classic, TBC, and WotLK Classic
-## Version: 2026.7.0-92344c09
+## Version: 2026.10.3-091a0d16
 ## Author: kvakvs; original by GPI/Erytheia-Razorfen
 ## DefaultState: enabled
 ## SavedVariables: BuffomatShared

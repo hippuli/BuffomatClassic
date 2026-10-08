@@ -1,4 +1,5 @@
 local BuffomatAddon = BuffomatAddon
+local envModule = LibStub("KvLibShared-Env") --[[@as KvSharedEnvModule]]
 
 ---@class ThrottleModule
 ---@field taskRescanRequestedBy {[string]: number} Reasons for force update, with count
@@ -79,8 +80,8 @@ function throttleModule.UpdateTimer()
   end
 
   if BuffomatAddon.checkCooldown then
-    local cdtest = GetSpellCooldown(BuffomatAddon.checkCooldown)
-    if cdtest == 0 then
+    local cdtest = envModule.GetSpellCooldown(BuffomatAddon.checkCooldown)
+    if cdtest == nil or cdtest == 0 then
       BuffomatAddon.checkCooldown = nil
       throttleModule:RequestTaskRescan("checkCd")
     end

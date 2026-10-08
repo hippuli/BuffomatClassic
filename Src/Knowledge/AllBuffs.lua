@@ -310,8 +310,6 @@ end
 ---@class BomReputationTrinketZones
 ---@field itemIds WowItemId[]
 ---@field zoneId WowZoneId[]
----@field Link string
----@field spell WowSpellId
 BuffomatAddon.reputationTrinketZones = {
   itemIds = {
     12846, -- Simple AD trinket
@@ -330,8 +328,6 @@ BuffomatAddon.reputationTrinketZones = {
 ---@class BomRidingSpeedZones
 ---@field itemIds WowItemId[]
 ---@field zoneId WowZoneId[]
----@field Link string
----@field spell WowSpellId
 BuffomatAddon.ridingSpeedZones = {
   itemIds = {
     11122, -- Classic: Item [Carrot on a Stick]
@@ -404,7 +400,7 @@ function allBuffsModule:SetupCancelBuffs()
       table.insert(s, buff)
     end
 
-    if (UnitFactionGroup("player")) ~= "Horde" or envModule.haveTBC then
+    if (UnitFactionGroup("player")) ~= "Horde" or envModule.haveTBC or envModule.isForever then
       local buff = buffDefModule:New(1038) --Blessing of Salvation
           :IsDefault(false)
           :SingleFamily({ 1038, 25895 })
